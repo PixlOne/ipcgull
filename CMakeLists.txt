@@ -14,7 +14,6 @@ set(IPCGULL_BACKEND_LIBRARIES ${GIO_LIBRARIES})
 
 include_directories(src/include/ ${IPCGULL_BACKEND_INCLUDE})
 add_library(ipcgull
-        src/variant.cpp
         src/function.cpp
         src/property.cpp
         src/signal.cpp
@@ -23,3 +22,5 @@ add_library(ipcgull
         src/exception.cpp
         ${IPCGULL_BACKEND_SRC})
 target_link_libraries(ipcgull ${IPCGULL_BACKEND_LIBRARIES})
+
+add_subdirectory(tests/server_test)
