@@ -6,12 +6,12 @@ Currently, Ipcgull only supports a D-Bus backend (via GDBus), but this is
 abstracted by the library and can theoretically be replaced. However, that is
 out of scope for this project.
 
-# Documentation
+## Documentation
 This project was originally designed solely for use in
 [LogiOps](https://github.com/PixlOne/logiops), and as such, it is not currently
 documented. This is planned for the future though.
 
-# Building
+## Building
 
 To build this project, run:
 
