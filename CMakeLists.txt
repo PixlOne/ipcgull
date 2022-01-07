@@ -23,4 +23,6 @@ add_library(ipcgull
         ${IPCGULL_BACKEND_SRC})
 target_link_libraries(ipcgull ${IPCGULL_BACKEND_LIBRARIES})
 
-add_subdirectory(tests/server_test)
+if(${BUILD_TESTS})
+    add_subdirectory(tests/server_test)
+endif()

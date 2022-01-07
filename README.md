@@ -22,5 +22,5 @@ cmake ..
 make
 ```
 
-To install, run `sudo make install`. Although, it is recommended that ipcgull
-is installed through a package manager if possible.
+To compile tests, pass the `-DBUILD_TESTS` option to CMake.
+
