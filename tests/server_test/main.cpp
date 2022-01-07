@@ -27,9 +27,29 @@
 
 constexpr ipcgull::connection_mode default_mode = ipcgull::IPCGULL_USER;
 
+class sample_object : public ipcgull::object {
+    int x;
+public:
+    explicit sample_object(int i = 0) : x {i} { }
+
+    sample_object& operator=(int o) {
+        x = o;
+        return *this;
+    }
+
+    operator int&() {
+        return x;
+    }
+
+    operator const int&() const {
+        return x;
+    }
+};
+
 class sample_interface : public ipcgull::interface {
 private:
     std::weak_ptr<ipcgull::server> _server;
+    std::weak_ptr<ipcgull::node> owner;
 
     static std::string echo(const std::string& input) {
         return input;
@@ -47,19 +67,37 @@ private:
         }
     }
 
+    void drop() {
+        if(auto owner_sp = owner.lock())
+            owner_sp->drop_interface("pizza.pixl.ipcgull.test.sample");
+    }
+
+    static void set_sample_object(const std::shared_ptr<sample_object>& o,
+                           const int& x) {
+        *o = x;
+    }
+
+    static int get_sample_object(const std::shared_ptr<sample_object>& o) {
+        return *o;
+    }
+
     static std::tuple<std::string, int> cut_string(const std::string& in) {
         return {in.substr(0, 5), in.length()};
     }
 
 public:
     sample_interface(const std::shared_ptr<ipcgull::server>& server,
+                     const std::shared_ptr<ipcgull::node>& o,
                      const std::shared_ptr<int>& ret) :
-    _server (server),
+    _server (server), owner (o),
     ipcgull::interface("pizza.pixl.ipcgull.test.sample", {
             {"echo", {echo, {"input"}, {"output"}}},
             {"print", {print, {"input"}}},
             {"stop", {this, &sample_interface::stop}},
-            {"cut_string", {cut_string, {"input"}, {"cut", "original_length"}}}
+            {"cut_string", {cut_string, {"input"}, {"cut", "original_length"}}},
+            {"drop", {this, &sample_interface::drop}},
+            {"set_obj", {set_sample_object, {"object", "value"}}},
+            {"get_obj", {get_sample_object, {"object"}, {"value"}}}
     }, {
             {"return_code", {ret, ipcgull::property::full}}
         },{
@@ -79,9 +117,11 @@ int main() {
     auto sample_property = std::make_shared<int>(0);
 
     auto root = ipcgull::node::make_root("sample");
+    auto ptr = std::make_shared<sample_object>(10);
+    root->manage(ptr);
     root->add_server(server);
     auto iface = root->make_interface<sample_interface>(
-            server, sample_property);
+            server, root, sample_property);
 
     std::thread signal_thread([iface, server]() {
         std::string line;

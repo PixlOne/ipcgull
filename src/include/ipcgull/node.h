@@ -40,6 +40,8 @@ namespace ipcgull {
         std::weak_ptr<node> _self;
         mutable std::list<std::weak_ptr<node>> _children;
 
+        std::weak_ptr<object> _managing;
+
         friend class interface;
         // Assumes that types are already checked
         void emit_signal(const std::string& iface,
@@ -85,6 +87,9 @@ namespace ipcgull {
 
         void add_server(const std::weak_ptr<server>& s);
         bool drop_server(const std::weak_ptr<server>& s);
+
+        void manage(const std::weak_ptr<object>& obj);
+        [[nodiscard]] const std::weak_ptr<object>& managed() const;
 
         [[nodiscard]] const std::map<std::string, std::shared_ptr<interface>>&
             interfaces() const;

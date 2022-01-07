@@ -20,6 +20,7 @@
 #define IPCGULL_SERVER_H
 
 #include <memory>
+#include <mutex>
 #include <ipcgull/variant.h>
 #include <ipcgull/connection.h>
 
@@ -47,6 +48,8 @@ namespace ipcgull {
                            const interface& iface);
         bool drop_interface(const std::string& node_path,
                             const std::string& if_name) noexcept;
+        void set_managing(const std::shared_ptr<node>& n,
+                          const std::weak_ptr<object>& managing);
 
     protected:
         server(std::string name,

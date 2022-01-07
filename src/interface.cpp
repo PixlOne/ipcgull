@@ -64,7 +64,6 @@ const std::map<std::string, ipcgull::signal>& interface::signals() const {
 void interface::_emit_signal(const std::string &signal,
                              const std::vector<variant>& args,
                              const variant_type& args_type) const {
-    assert(!_owner.expired());
     if(auto owner = _owner.lock())
         owner->emit_signal(name(), signal, args, args_type);
 }

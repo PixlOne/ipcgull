@@ -60,18 +60,248 @@ struct server::internal {
     };
 
     std::map<std::string, internal_node> nodes;
+    std::map<object*, std::string> object_path_lookup;
 
     GDBusConnection* connection = nullptr;
     GBusType bus_type = G_BUS_TYPE_NONE;
     GDBusObjectManagerServer* object_manager = nullptr;
     guint gdbus_name = 0;
 
+    std::recursive_mutex server_lock;
     std::mutex run_lock;
     std::atomic<GMainLoop*> main_loop = nullptr;
 
     std::atomic<enum name_state> owns_name = NAME_LOST;
 
     std::atomic_bool stop_requested = false;
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "misc-no-recursion"
+    variant from_gvariant(GVariant* v) {
+        if(v == nullptr)
+            return variant_tuple();
+
+        const auto *type = g_variant_get_type(v);
+
+        if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_INT16)) {
+            return g_variant_get_int16(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_UINT16)) {
+            return g_variant_get_uint16(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_INT32)) {
+            return g_variant_get_int32(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_UINT32)) {
+            return g_variant_get_uint32(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_INT64)) {
+            return g_variant_get_int64(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_UINT64)) {
+            return g_variant_get_uint64(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_DOUBLE)) {
+            return g_variant_get_double(v);
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_BYTE)) {
+            return g_variant_get_byte(v);
+        } else if(g_variant_type_is_subtype_of(type,
+                                               G_VARIANT_TYPE_OBJECT_PATH)) {
+            gsize length;
+            std::string path {g_variant_get_string(v, &length)};
+            if(auto obj = nodes.at(path).object.lock()) {
+                if(auto ptr = obj->managed().lock())
+                    return ptr;
+            }
+            throw std::out_of_range("Node does not manage an object");
+        } else if(g_variant_type_is_subtype_of(type,
+                                               G_VARIANT_TYPE_SIGNATURE)) {
+            gsize length;
+            const char* c_str = g_variant_get_string(v, &length);
+            return signature(c_str, length);
+        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_STRING)) {
+            gsize length;
+            const char* c_str = g_variant_get_string(v, &length);
+            return std::string(c_str, length);
+        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_BOOLEAN)) {
+            return {g_variant_get_boolean(v)};
+        } else if(g_variant_type_is_subtype_of(type,
+                                               G_VARIANT_TYPE_DICTIONARY)) {
+            const gsize length = g_variant_n_children(v);
+            std::map<variant, variant> dict;
+            for(gsize i = 0; i < length; ++i) {
+                auto* element = g_variant_get_child_value(v, i);
+                assert(g_variant_n_children(element) == 2);
+                auto* key = g_variant_get_child_value(element, 0);
+                auto* val = g_variant_get_child_value(element, 1);
+                try {
+                    dict.emplace(std::piecewise_construct,
+                                 std::forward_as_tuple(from_gvariant(key)),
+                                 std::forward_as_tuple(from_gvariant(val)));
+                } catch(std::exception& e) {
+                    g_variant_unref(key);
+                    g_variant_unref(val);
+                    g_variant_unref(element);
+                    throw;
+                }
+                g_variant_unref(key);
+                g_variant_unref(val);
+                g_variant_unref(element);
+            }
+            return dict;
+        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_TUPLE)) {
+            const gsize length = g_variant_n_children(v);
+            std::vector<variant> array(length);
+            for(gsize i = 0; i < length; ++i) {
+                auto* child_gvar = g_variant_get_child_value(v, i);
+                try {
+                    array[i] = from_gvariant(child_gvar);
+                } catch(std::exception& e) {
+                    g_variant_unref(child_gvar);
+                    throw;
+                }
+                g_variant_unref(child_gvar);
+            }
+
+            return variant_tuple(array);
+        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_ARRAY)) {
+            const gsize length = g_variant_n_children(v);
+            std::vector<variant> array(length);
+            for(gsize i = 0; i < length; ++i) {
+                auto* child_gvar = g_variant_get_child_value(v, i);
+                try {
+                    array[i] = from_gvariant(child_gvar);
+                } catch(std::exception& e) {
+                    g_variant_unref(child_gvar);
+                    throw;
+                }
+                g_variant_unref(child_gvar);
+            }
+
+            return array;
+        } else {
+            throw std::invalid_argument("Unsupported GVariant type");
+        }
+    }
+#pragma clang diagnostic pop
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "misc-no-recursion"
+    GVariant* to_gvariant(const variant& v,
+                          const variant_type& type) {
+        if(std::holds_alternative<int16_t>(v)) {
+            return g_variant_new_int16(std::get<int16_t>(v));
+        } else if(std::holds_alternative<uint16_t>(v)) {
+            return g_variant_new_uint16(std::get<uint16_t>(v));
+        } else if(std::holds_alternative<int32_t>(v)) {
+            return g_variant_new_int32(std::get<int32_t>(v));
+        } else if(std::holds_alternative<uint32_t>(v)) {
+            return g_variant_new_uint32(std::get<uint32_t>(v));
+        } else if(std::holds_alternative<int64_t>(v)) {
+            return g_variant_new_int64(std::get<int64_t>(v));
+        } else if(std::holds_alternative<uint64_t>(v)) {
+            return g_variant_new_uint64(std::get<uint64_t>(v));
+        } else if(std::holds_alternative<double>(v)) {
+            return g_variant_new_double(std::get<double>(v));
+        } else if(std::holds_alternative<uint8_t>(v)) {
+            return g_variant_new_byte(std::get<uint8_t>(v));
+        } else if(std::holds_alternative<std::shared_ptr<object>>(v)) {
+            auto* ptr = std::get<std::shared_ptr<object>>(v).get();
+            // May throw
+            try {
+                const auto object_path = object_path_lookup.at(ptr);
+                return g_variant_new_object_path(object_path.c_str());
+            } catch(std::out_of_range& e) {
+                throw std::runtime_error("Invalid object path");
+            }
+        } else if(std::holds_alternative<signature>(v)) {
+            return g_variant_new_signature(std::get<signature>(v).c_str());
+        } else if(std::holds_alternative<std::string>(v)) {
+            return g_variant_new_string(std::get<std::string>(v).c_str());
+        } else if(std::holds_alternative<bool>(v)) {
+            return g_variant_new_boolean(std::get<bool>(v));
+        } else if(std::holds_alternative<variant_tuple>(v)) {
+            const std::vector<variant>& vector = std::get<variant_tuple>(v);
+            std::unique_ptr<GVariant*[]> raw_array(
+                    new GVariant*[vector.size()]);
+            variant_type child_type {};
+            for(gsize i = 0; i < vector.size(); ++i) {
+                if(child_type == variant_type()) {
+                    child_type = variant_type::from_internal(
+                            g_variant_type_first(const_g_type(type.raw_data())
+                            ));
+                } else {
+                    child_type = variant_type::from_internal(
+                            g_variant_type_next(
+                                    const_g_type(child_type.raw_data())
+                            ));
+                }
+                assert(child_type != variant_type());
+                try {
+                    raw_array[i] = to_gvariant(vector[i], child_type);
+                } catch(std::exception& e) {
+                    for(gsize j = i-1; j >= 0; --j)
+                        g_variant_unref(g_variant_ref_sink(raw_array[j]));
+                    throw;
+                }
+            }
+            return g_variant_new_tuple(raw_array.get(), vector.size());
+        } else if(std::holds_alternative<std::vector<variant>>(v)) {
+            const auto& vector = std::get<std::vector<variant>>(v);
+            const auto child_type = variant_type::from_internal(
+                    g_variant_type_element(const_g_type(type.raw_data())
+                    ));
+
+            if(vector.empty())
+                return g_variant_new_array(
+                        const_g_type(child_type.raw_data()),
+                        nullptr, 0);
+
+            std::unique_ptr<GVariant*[]> raw_array(new GVariant*[vector.size()]);
+            for(gsize i = 0; i < vector.size(); ++i) {
+                try {
+                    raw_array[i] = to_gvariant(vector[i], child_type);
+                } catch(std::exception& e) {
+                    for(gsize j = i-1; j >= 0; --j)
+                        g_variant_unref(g_variant_ref_sink(raw_array[j]));
+                    throw;
+                }
+            }
+
+            return g_variant_new_array(
+                    const_g_type(child_type.raw_data()),
+                    raw_array.get(), vector.size());
+        } else if(std::holds_alternative<std::map<variant, variant>>(v)) {
+            const auto& map = std::get<std::map<variant, variant>>(v);
+            const auto child_type = variant_type::from_internal(
+                    g_variant_type_element(const_g_type(type.raw_data())
+                    ));
+
+            if(map.empty())
+                return g_variant_new_array(
+                        const_g_type(child_type), nullptr, 0);
+
+            gsize i = 0;
+            std::unique_ptr<GVariant*[]> raw_array(new GVariant*[map.size()]);
+            for(auto& x : map) {
+                const auto key_type = variant_type::from_internal(
+                        g_variant_type_key(const_g_type(child_type)));
+                const auto value_type = variant_type::from_internal(
+                        g_variant_type_value(const_g_type(child_type)));
+
+                try {
+                    raw_array[i] = g_variant_new_dict_entry(
+                            to_gvariant(x.first, key_type),
+                            to_gvariant(x.second, value_type));
+                } catch(std::exception& e) {
+                    for(gsize j = i-1; j >= 0; --j)
+                        g_variant_unref(g_variant_ref_sink(raw_array[j]));
+                    throw;
+                }
+
+                ++i;
+            }
+            return g_variant_new_array(nullptr, raw_array.get(), map.size());
+        } else {
+            // This should not happen
+            assert(!"converted unhandled variant type");
+        }
+    }
+#pragma clang diagnostic pop
 
     // C-style GDBus callbacks
     static void gdbus_method_call(
@@ -85,6 +315,7 @@ struct server::internal {
             gpointer internal_weak) {
         if(auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
+            std::lock_guard<std::recursive_mutex> lock(i->server_lock);
             auto weak_node = i->nodes.find(object_path);
             if(weak_node == i->nodes.end()) {
                 g_dbus_method_invocation_return_error(
@@ -113,7 +344,7 @@ struct server::internal {
                 }
 
                 try {
-                    auto v_args = from_gvariant(parameters);
+                    auto v_args = i->from_gvariant(parameters);
                     try {
                         const auto args = std::get<variant_tuple>(v_args);
                         const auto response = f_it->second(args);
@@ -123,7 +354,7 @@ struct server::internal {
                             return;
                         }
                         // Response is guaranteed to have a valid response type
-                        auto g_response = to_gvariant(
+                        auto g_response = i->to_gvariant(
                                 response,
                                 variant_type::tuple(
                                         f_it->second.return_types()));
@@ -156,6 +387,11 @@ struct server::internal {
                             G_DBUS_ERROR_INVALID_SIGNATURE,
                             "Unimplemented argument type");
                     return;
+                } catch(std::out_of_range& e) {
+                    g_dbus_method_invocation_return_error(
+                            invocation, G_DBUS_ERROR,
+                            G_DBUS_ERROR_UNKNOWN_OBJECT,
+                            "Invalid object path");
                 }
             } else {
                 // This shouldn't happen, but handle the case it does.
@@ -184,6 +420,7 @@ struct server::internal {
             gpointer internal_weak) {
         if(auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
+            std::lock_guard<std::recursive_mutex> lock(i->server_lock);
             auto weak_node = i->nodes.find(object_path);
             if(weak_node == i->nodes.end()) {
                 g_set_error(error, G_DBUS_ERROR,
@@ -207,7 +444,7 @@ struct server::internal {
                             G_DBUS_ERROR_UNKNOWN_PROPERTY,
                             "Unknown property");
 
-                return to_gvariant(p_it->second.get(),
+                return i->to_gvariant(p_it->second.get(),
                                    p_it->second.type());
             } else {
                 // This shouldn't happen, but handle the case it does.
@@ -224,16 +461,18 @@ struct server::internal {
         }
     }
 
-    static gboolean gdbus_set_property([[maybe_unused]] GDBusConnection *connection,
-                                       [[maybe_unused]] const gchar *sender,
-                                       const gchar *object_path,
-                                       const gchar *interface_name,
-                                       const gchar *property_name,
-                                       GVariant *value,
-                                       GError **error,
-                                       gpointer internal_weak) {
+    static gboolean gdbus_set_property(
+            [[maybe_unused]] GDBusConnection *connection,
+            [[maybe_unused]] const gchar *sender,
+            const gchar *object_path,
+            const gchar *interface_name,
+            const gchar *property_name,
+            GVariant *value,
+            GError **error,
+            gpointer internal_weak) {
         if(auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
+            std::lock_guard<std::recursive_mutex> lock(i->server_lock);
             auto weak_node = i->nodes.find(object_path);
             if(weak_node == i->nodes.end()) {
                 g_set_error(error, G_DBUS_ERROR,
@@ -260,7 +499,7 @@ struct server::internal {
                 }
 
                 try {
-                    return p_it->second.set(from_gvariant(value));
+                    return p_it->second.set(i->from_gvariant(value));
                 } catch(std::bad_variant_access& e) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_INVALID_SIGNATURE,
@@ -269,6 +508,16 @@ struct server::internal {
                 } catch(permission_denied& e) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_PROPERTY_READ_ONLY,
+                                "%s", e.what());
+                    return false;
+                } catch(std::invalid_argument& e) {
+                    g_set_error(error, G_DBUS_ERROR,
+                                G_DBUS_ERROR_INVALID_ARGS,
+                                "%s", e.what());
+                    return false;
+                } catch(std::exception& e) {
+                    g_set_error(error, G_DBUS_ERROR,
+                                G_DBUS_ERROR_FAILED,
                                 "%s", e.what());
                     return false;
                 }
@@ -602,7 +851,8 @@ void server::emit_signal(
         const std::string& node, const std::string& iface,
         const std::string& signal, const variant_tuple& args,
         const variant_type& args_type) const {
-    auto* g_args = g_variant_ref_sink(to_gvariant(args, args_type));
+    std::lock_guard<std::recursive_mutex> lock(_internal->server_lock);
+    auto* g_args = g_variant_ref_sink(_internal->to_gvariant(args, args_type));
     GError* error = nullptr;
 
     // TODO: Destination bus support
@@ -623,10 +873,13 @@ void server::emit_signal(
 
 void server::add_interface(const std::shared_ptr<node>& node,
                            const interface& iface) {
+    std::lock_guard<std::recursive_mutex> lock(_internal->server_lock);
     auto node_name = node->full_name(*this);
     auto node_it = _internal->nodes.find(node_name);
-    if(node_it->second.interfaces.count(iface.name()))
-        throw std::runtime_error("interface already exists");
+    if(node_it != _internal->nodes.end()) {
+        if(node_it->second.interfaces.count(iface.name()))
+            throw std::runtime_error("interface already exists");
+    }
 
     auto* iface_info = internal::interface_info(iface);
     GError* error = nullptr;
@@ -654,6 +907,7 @@ void server::add_interface(const std::shared_ptr<node>& node,
 
 bool server::drop_interface(const std::string& node_path,
                             const std::string& if_name) noexcept {
+    std::lock_guard<std::recursive_mutex> lock(_internal->server_lock);
     bool ret;
     auto node_it = _internal->nodes.find(node_path);
     if(node_it == _internal->nodes.end())
@@ -667,10 +921,30 @@ bool server::drop_interface(const std::string& node_path,
                                               iface_it->second);
 
     node_it->second.interfaces.erase(iface_it);
-    if(node_it->second.interfaces.empty())
+    if(node_it->second.interfaces.empty()) {
+        if(auto node_sp = node_it->second.object.lock())
+            _internal->object_path_lookup.erase(
+                    node_sp->managed().lock().get());
         _internal->nodes.erase(node_it);
+    }
 
     return ret;
+}
+
+void server::set_managing(const std::shared_ptr<node>& n,
+                          const std::weak_ptr<object>& managing) {
+    std::lock_guard<std::recursive_mutex> lock(_internal->server_lock);
+
+    assert(n);
+
+    _internal->object_path_lookup.erase(n->managed().lock().get());
+
+    if(auto obj = managing.lock()) {
+        if(_internal->object_path_lookup.count(obj.get()))
+            throw std::runtime_error("Managed object must be unique");
+        _internal->object_path_lookup.emplace(obj.get(),
+                                              n->full_name(*this));
+    }
 }
 
 [[maybe_unused]] void server::reconnect() {

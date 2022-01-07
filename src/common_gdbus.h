@@ -22,11 +22,13 @@
 #include <ipcgull/variant.h>
 
 namespace ipcgull {
-    variant from_gvariant(GVariant* v);
+    class server;
 
-    // type is only necessary for arrays and maps
-    GVariant* to_gvariant(const variant& v,
-                          const variant_type& type) noexcept;
+    GVariantType* g_type(std::any& x);
+
+    const GVariantType* const_g_type(const std::any& x);
+
+    std::any g_type_to_any(GVariantType* x);
 }
 
 #endif //IPCGULL_COMMON_GDBUS_H

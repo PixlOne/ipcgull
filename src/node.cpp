@@ -100,7 +100,7 @@ std::shared_ptr<node> node::make_child(const std::string &name) const {
     return true;
 }
 
-void node::add_server(const std::weak_ptr<server> &s) {
+void node::add_server(const std::weak_ptr<server>& s) {
     if(auto server = s.lock()) {
         for(auto& existing_server : _servers) {
             if(existing_server.lock() == server)
@@ -124,7 +124,7 @@ void node::add_server(const std::weak_ptr<server> &s) {
     }
 }
 
-bool node::drop_server(const std::weak_ptr<server> &s) {
+bool node::drop_server(const std::weak_ptr<server>& s) {
     auto server = s.lock();
     bool server_found = false;
     for(auto& existing_server : _servers) {
@@ -143,6 +143,18 @@ bool node::drop_server(const std::weak_ptr<server> &s) {
     }
 
     return true;
+}
+
+void node::manage(const std::weak_ptr<object>& obj) {
+    _managing = obj;
+    for(auto& x : _servers) {
+        if(auto server = x.lock())
+            server->set_managing(_self.lock(), obj);
+    }
+}
+
+const std::weak_ptr<object>& node::managed() const {
+    return _managing;
 }
 
 void node::emit_signal(const std::string& iface,

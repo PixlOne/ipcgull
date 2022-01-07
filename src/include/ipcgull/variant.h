@@ -29,6 +29,13 @@
 
 namespace ipcgull {
 
+    class object {
+    public:
+        virtual ~object() = default;
+    };
+
+    /// TODO: client_object that is a wrapper for the object path string?
+
     template <typename T, std::size_t k = 0>
     class _wrapper : public T {
     private:
@@ -53,8 +60,8 @@ namespace ipcgull {
         _wrapper& operator=(_wrapper&& o) noexcept = default;
     };
 
-    /// TODO: Do we need Object Path or Signature?
-    typedef _wrapper<std::string, 0> object_path;
+    /// TODO: Do we need Signature?
+    //typedef _wrapper<std::string, 0> object_path;
     typedef _wrapper<std::string, 1> signature;
 
     template <typename T>
@@ -67,7 +74,8 @@ namespace ipcgull {
             uint64_t,
             double,
             uint8_t,
-            object_path,
+            //object_path,
+            std::shared_ptr<object>,
             signature,
             std::string,
             bool,
@@ -165,7 +173,7 @@ namespace ipcgull {
                 return ret;
             }
 
-            [[maybe_unused]] static std::map<K, V> make(const variant &v) {
+            static variant make(const std::map<K, V>& v) {
                 std::map<variant, variant> ret;
                 const auto &m = std::get<std::map<K, variant>>(v);
                 for (const auto &i : m)
@@ -180,40 +188,59 @@ namespace ipcgull {
         };
 
         template <typename T>
-        struct _disqualify {
+        struct _variant_helper<std::shared_ptr<T>> {
+            static std::shared_ptr<T> get(const variant& v) {
+                static_assert(std::is_base_of<object, T>::value,
+                        "T must be an ipcgull::object");
+                return std::dynamic_pointer_cast<T>(
+                        std::get<std::shared_ptr<object>>(v));
+            }
+
+            static variant make(const std::shared_ptr<object>& obj) {
+                return obj;
+            }
+        };
+
+        template <typename T>
+        struct _normalize_type {
             typedef T type;
         };
 
         template <typename T>
-        struct _disqualify<const T> {
-            typedef typename _disqualify<T>::type type;
+        struct _normalize_type<const T> {
+            typedef typename _normalize_type<T>::type type;
         };
 
         template <typename T>
-        struct _disqualify<T&> {
-            typedef typename _disqualify<T>::type type;
+        struct _normalize_type<T&> {
+            typedef typename _normalize_type<T>::type type;
         };
 
         template <typename... Args>
-        struct _disqualify< std::tuple<Args...> > {
-            typedef std::tuple<typename _disqualify<Args>::type...> type;
+        struct _normalize_type< std::tuple<Args...> > {
+            typedef std::tuple<typename _normalize_type<Args>::type...> type;
         };
 
         template <typename T>
-        struct _disqualify<std::vector<T> > {
-            typedef std::vector<typename _disqualify<T>::type> type;
+        struct _normalize_type<std::vector<T> > {
+            typedef std::vector<typename _normalize_type<T>::type> type;
         };
 
         template <typename K, typename V>
-        struct _disqualify<std::map<K, V> > {
-            typedef std::map<typename _disqualify<K>::type,
-                             typename _disqualify<V>::type > type;
+        struct _normalize_type<std::map<K, V> > {
+            typedef std::map<typename _normalize_type<K>::type,
+                             typename _normalize_type<V>::type > type;
+        };
+
+        template <typename T>
+        struct _normalize_type<std::shared_ptr<T>> {
+            typedef std::shared_ptr<typename _normalize_type<T>::type> type;
         };
     }
 
     template <typename T>
-    typename _disqualify<T>::type from_variant(const variant& v) {
-        return _variant_helper<typename _disqualify<T>::type>::get(v);
+    typename _normalize_type<T>::type from_variant(const variant& v) {
+        return _variant_helper<typename _normalize_type<T>::type>::get(v);
     }
 
     template <typename T>
@@ -310,6 +337,15 @@ namespace ipcgull {
                         _variant_type_helper<K>::make(),
                         _variant_type_helper<V>::make()
                         );
+            }
+        };
+
+        template <typename T>
+        struct _variant_type_helper<std::shared_ptr<T>> {
+            static variant_type make() {
+                static_assert(std::is_base_of<object, T>::value,
+                              "T must be an ipcgull::object");
+                return variant_type(typeid(std::shared_ptr<object>));
             }
         };
     }
