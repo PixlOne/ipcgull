@@ -54,6 +54,8 @@ namespace ipcgull {
                     std::function<R()> f) {
                 return [func=std::move(f)]
                         (const variant_tuple& args)->variant_tuple {
+                    if(!args.empty())
+                        throw std::bad_variant_access();
                     std::vector<variant> ret {to_variant(func())};
                     return ret;
                 };
@@ -80,7 +82,9 @@ namespace ipcgull {
             [[maybe_unused]]
             static std::function<variant_tuple(variant_tuple)> make_fn(
                     std::function<std::tuple<R...>()> f) {
-                return [func=std::move(f)] {
+                return [func=std::move(f)](const variant_tuple& args) {
+                    if(!args.empty())
+                        throw std::bad_variant_access();
                     auto ret = to_variant(func());
                     assert(std::holds_alternative<variant_tuple>(ret));
                     return std::get<variant_tuple>(ret);
@@ -107,6 +111,8 @@ namespace ipcgull {
                     std::function<void()> f) {
                 return [func=std::move(f)]
                         (const variant_tuple& args)->variant_tuple {
+                    if(!args.empty())
+                        throw std::bad_variant_access();
                     func();
                     return {};
                 };
@@ -255,13 +261,10 @@ namespace ipcgull {
                          arg_names) {
         }
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "google-explicit-constructor"
         function(const std::function<void()>& f) :
                 _f (_fn_generator<void>::make_fn(f)) { }
 
         function(void(*f)()) : function(std::function<void()>(f)) { }
-#pragma clang diagnostic pop
 
         template <typename T>
         function(T* t, void(T::*f)()) :

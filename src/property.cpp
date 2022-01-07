@@ -39,6 +39,6 @@ const variant_type& property::type() const {
     return _type;
 }
 
-const property::permission_mode property::permissions() const {
+property::permission_mode property::permissions() const {
     return _perms;
 }

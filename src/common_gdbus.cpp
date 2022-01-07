@@ -111,7 +111,7 @@ variant_type variant_type::vector(variant_type&& t) {
 variant_type variant_type::map(const variant_type& k, const variant_type& v) {
     variant_type type {};
     auto k_type = const_g_type(k.data);
-    auto v_type = const_g_type(k.data);
+    auto v_type = const_g_type(v.data);
     assert(k_type && v_type);
     type.data = g_type_to_any(
             g_variant_type_new_array(

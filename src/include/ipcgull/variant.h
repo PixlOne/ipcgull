@@ -42,11 +42,8 @@ namespace ipcgull {
         static constexpr int K = k;
     public:
         _wrapper() = default;
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "google-explicit-constructor"
         template <typename... Args>
         _wrapper(Args... args) : T(std::forward<Args>(args)...) { }
-#pragma clang diagnostic pop
         _wrapper(const _wrapper& o) = default;
         _wrapper(_wrapper&& o) noexcept = default;
 

@@ -75,8 +75,6 @@ struct server::internal {
 
     std::atomic_bool stop_requested = false;
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "misc-no-recursion"
     variant from_gvariant(GVariant* v) {
         if(v == nullptr)
             return variant_tuple();
@@ -177,10 +175,7 @@ struct server::internal {
             throw std::invalid_argument("Unsupported GVariant type");
         }
     }
-#pragma clang diagnostic pop
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "misc-no-recursion"
     GVariant* to_gvariant(const variant& v,
                           const variant_type& type) {
         if(std::holds_alternative<int16_t>(v)) {
@@ -234,7 +229,7 @@ struct server::internal {
                 try {
                     raw_array[i] = to_gvariant(vector[i], child_type);
                 } catch(std::exception& e) {
-                    for(gsize j = i-1; j >= 0; --j)
+                    for(int j = i-1; j >= 0; --j)
                         g_variant_unref(g_variant_ref_sink(raw_array[j]));
                     throw;
                 }
@@ -256,7 +251,7 @@ struct server::internal {
                 try {
                     raw_array[i] = to_gvariant(vector[i], child_type);
                 } catch(std::exception& e) {
-                    for(gsize j = i-1; j >= 0; --j)
+                    for(int j = i-1; j >= 0; --j)
                         g_variant_unref(g_variant_ref_sink(raw_array[j]));
                     throw;
                 }
@@ -288,7 +283,7 @@ struct server::internal {
                             to_gvariant(x.first, key_type),
                             to_gvariant(x.second, value_type));
                 } catch(std::exception& e) {
-                    for(gsize j = i-1; j >= 0; --j)
+                    for(int j = i-1; j >= 0; --j)
                         g_variant_unref(g_variant_ref_sink(raw_array[j]));
                     throw;
                 }
@@ -301,7 +296,6 @@ struct server::internal {
             assert(!"converted unhandled variant type");
         }
     }
-#pragma clang diagnostic pop
 
     // C-style GDBus callbacks
     static void gdbus_method_call(
@@ -741,7 +735,8 @@ struct server::internal {
     static constexpr GDBusInterfaceVTable interface_vtable = {
             .method_call = gdbus_method_call,
             .get_property = gdbus_get_property,
-            .set_property = gdbus_set_property
+            .set_property = gdbus_set_property,
+            .padding = {}
     };
 };
 

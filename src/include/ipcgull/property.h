@@ -180,7 +180,7 @@ namespace ipcgull {
 
         [[nodiscard]] const variant_type& type() const;
 
-        [[nodiscard]] const permission_mode permissions() const;
+        [[nodiscard]] permission_mode permissions() const;
     };
 }
 

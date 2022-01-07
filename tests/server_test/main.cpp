@@ -89,7 +89,6 @@ public:
     sample_interface(const std::shared_ptr<ipcgull::server>& server,
                      const std::shared_ptr<ipcgull::node>& o,
                      const std::shared_ptr<int>& ret) :
-    _server (server), owner (o),
     ipcgull::interface("pizza.pixl.ipcgull.test.sample", {
             {"echo", {echo, {"input"}, {"output"}}},
             {"print", {print, {"input"}}},
@@ -102,7 +101,7 @@ public:
             {"return_code", {ret, ipcgull::property::full}}
         },{
             {"input_received", ipcgull::make_signal<std::string>({"line"})}
-    }) { }
+    }), _server (server), owner (o) { }
 
     void input_received(const std::string& line) {
         emit_signal("input_received", line);

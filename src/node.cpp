@@ -116,7 +116,7 @@ void node::add_server(const std::weak_ptr<server>& s) {
                 interfaces.insert(x.second);
             } catch(std::exception& e) {
                 for(auto& iface : interfaces)
-                    server->drop_interface(node_path, x.second->name());
+                    server->drop_interface(node_path, iface->name());
                 throw;
             }
         }
