@@ -1045,12 +1045,16 @@ const std::string& server::root_node() const {
 }
 
 std::string node::full_name(const server& s) const {
-    return s.root_node() + "/" + tree_name();
+    const auto tree = tree_name();
+    if(tree.empty())
+        return s.root_node();
+    else
+        return s.root_node() + "/" + tree;
 }
 
 std::string node::tree_name() const {
     if(const auto parent = _parent.lock()) {
-        return parent->name() + "/" + name();
+        return parent->tree_name() + "/" + name();
     } else {
         return name();
     }
