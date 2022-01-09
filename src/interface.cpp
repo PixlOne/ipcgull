@@ -49,15 +49,23 @@ interface::interface(const interface& o) :
     _properties (o._properties), _signals (o._signals) {
 }
 
-const std::map<std::string, function>& interface::functions() const {
+const interface::function_table& interface::functions() const {
     return _functions;
 }
 
-const std::map<std::string, property>& interface::properties() const {
+const interface::property_table& interface::properties() const {
     return _properties;
 }
 
-const std::map<std::string, ipcgull::signal>& interface::signals() const {
+const base_property& interface::get_property(const std::string& name) const {
+    return _properties.at(name);
+}
+
+base_property& interface::get_property(const std::string& name) {
+    return _properties.at(name);
+}
+
+const interface::signal_table& interface::signals() const {
     return _signals;
 }
 

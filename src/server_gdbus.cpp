@@ -430,16 +430,24 @@ struct server::internal {
                             "Unknown interface");
                     return nullptr;
                 }
-                const auto& properties = iface_it->second->properties();
-                auto p_it = properties.find(property_name);
+                try {
+                    const auto& property = iface_it->second->get_property(
+                            property_name);
 
-                if(p_it == properties.end())
+                    return i->to_gvariant(property.get_variant(),
+                                          property.type());
+                } catch(std::out_of_range& e) {
                     g_set_error(error, G_DBUS_ERROR,
-                            G_DBUS_ERROR_UNKNOWN_PROPERTY,
-                            "Unknown property");
+                                G_DBUS_ERROR_UNKNOWN_PROPERTY,
+                                "Unknown property");
+                    return nullptr;
+                } catch(std::exception& e) {
+                    g_set_error(error, G_DBUS_ERROR,
+                                G_DBUS_ERROR_FAILED,
+                                "%s", e.what());
+                    return nullptr;
+                }
 
-                return i->to_gvariant(p_it->second.get(),
-                                   p_it->second.type());
             } else {
                 // This shouldn't happen, but handle the case it does.
                 g_set_error(error, G_DBUS_ERROR,
@@ -482,39 +490,42 @@ struct server::internal {
                                 "Unknown interface");
                     return false;
                 }
-                const auto& properties = iface_it->second->properties();
-                auto p_it = properties.find(property_name);
 
-                if(p_it == properties.end()) {
+                try {
+                    auto& p = iface_it->second->get_property(
+                            property_name);
+
+                    try {
+                        return p.set_variant(i->from_gvariant(value));
+                    } catch(std::bad_variant_access& e) {
+                        g_set_error(error, G_DBUS_ERROR,
+                                    G_DBUS_ERROR_INVALID_SIGNATURE,
+                                    "Invalid argument type");
+                        return false;
+                    } catch(permission_denied& e) {
+                        g_set_error(error, G_DBUS_ERROR,
+                                    G_DBUS_ERROR_PROPERTY_READ_ONLY,
+                                    "%s", e.what());
+                        return false;
+                    } catch(std::invalid_argument& e) {
+                        g_set_error(error, G_DBUS_ERROR,
+                                    G_DBUS_ERROR_INVALID_ARGS,
+                                    "%s", e.what());
+                        return false;
+                    } catch(std::exception& e) {
+                        g_set_error(error, G_DBUS_ERROR,
+                                    G_DBUS_ERROR_FAILED,
+                                    "%s", e.what());
+                        return false;
+                    }
+
+                } catch(std::out_of_range& e) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_UNKNOWN_PROPERTY,
                                 "Unknown property");
                     return false;
                 }
 
-                try {
-                    return p_it->second.set(i->from_gvariant(value));
-                } catch(std::bad_variant_access& e) {
-                    g_set_error(error, G_DBUS_ERROR,
-                                G_DBUS_ERROR_INVALID_SIGNATURE,
-                                "Invalid argument type");
-                    return false;
-                } catch(permission_denied& e) {
-                    g_set_error(error, G_DBUS_ERROR,
-                                G_DBUS_ERROR_PROPERTY_READ_ONLY,
-                                "%s", e.what());
-                    return false;
-                } catch(std::invalid_argument& e) {
-                    g_set_error(error, G_DBUS_ERROR,
-                                G_DBUS_ERROR_INVALID_ARGS,
-                                "%s", e.what());
-                    return false;
-                } catch(std::exception& e) {
-                    g_set_error(error, G_DBUS_ERROR,
-                                G_DBUS_ERROR_FAILED,
-                                "%s", e.what());
-                    return false;
-                }
             } else {
                 // This shouldn't happen, but handle the case it does.
                 g_set_error(error, G_DBUS_ERROR,
@@ -621,7 +632,7 @@ struct server::internal {
     }
 
     static GDBusPropertyInfo* property_info(const std::string& name,
-                                            const property& p) {
+                                            const base_property& p) {
         auto* info = g_new(GDBusPropertyInfo, 1);
         assert(info);
         info->ref_count = 1;
@@ -629,9 +640,9 @@ struct server::internal {
         info->annotations = nullptr;
         {
             int flags = G_DBUS_PROPERTY_INFO_FLAGS_NONE;
-            if(p.permissions() & property::readable)
+            if(p.permissions() & property_readable)
                 flags |= G_DBUS_PROPERTY_INFO_FLAGS_READABLE;
-            if(p.permissions() & property::writeable)
+            if(p.permissions() & property_writeable)
                 flags |= G_DBUS_PROPERTY_INFO_FLAGS_WRITABLE;
             info->flags = static_cast<GDBusPropertyInfoFlags>(flags);
         }

@@ -27,19 +27,19 @@
 
 namespace ipcgull {
     class function;
-    class property;
+    class base_property;
     struct signal;
     class node;
 
     class interface {
     public:
         typedef std::map<std::string, function> function_table;
-        typedef std::map<std::string, property> property_table;
+        typedef std::map<std::string, base_property> property_table;
         typedef std::map<std::string, signal> signal_table;
     private:
         const std::string _name;
         const function_table _functions;
-        const property_table _properties;
+        property_table _properties;
         const signal_table _signals;
 
         // The node should take ownership of the interface
@@ -69,6 +69,10 @@ namespace ipcgull {
         [[nodiscard]] const function_table& functions() const;
         [[nodiscard]] const property_table& properties() const;
         [[nodiscard]] const signal_table& signals() const;
+
+        [[nodiscard]] const base_property& get_property(
+                const std::string& name) const;
+        [[nodiscard]] base_property& get_property(const std::string& name);
 
         template <typename... Args>
         [[maybe_unused]]

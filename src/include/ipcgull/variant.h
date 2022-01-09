@@ -28,7 +28,6 @@
 #include <vector>
 
 namespace ipcgull {
-
     class object {
     public:
         virtual ~object() = default;
@@ -89,6 +88,66 @@ namespace ipcgull {
 
     typedef y_comb<_variant> variant;
     typedef _wrapper<std::vector<variant>, 0> variant_tuple;
+
+    namespace {
+        template <typename A, typename B>
+        struct and_type : and_type<typename A::type, B> { };
+
+        template <typename B>
+        struct and_type<std::false_type, B> : std::false_type { };
+
+        template <typename B>
+        struct and_type<std::true_type, B> : B { };
+    }
+
+    template <typename T>
+    struct variant_constructable : std::false_type { };
+
+    template <>
+    struct variant_constructable<int16_t> : std::true_type { };
+    template <>
+    struct variant_constructable<uint16_t> : std::true_type { };
+    template <>
+    struct variant_constructable<int32_t> : std::true_type { };
+    template <>
+    struct variant_constructable<uint32_t> : std::true_type { };
+    template <>
+    struct variant_constructable<int64_t> : std::true_type { };
+    template <>
+    struct variant_constructable<uint64_t> : std::true_type { };
+    template <>
+    struct variant_constructable<double> : std::true_type { };
+    template <>
+    struct variant_constructable<uint8_t> : std::true_type { };
+    template <typename T>
+    struct variant_constructable<std::shared_ptr<T>> :
+            std::is_base_of<object, T> { };
+    template <typename T>
+    struct variant_constructable<std::shared_ptr<const T>> :
+            std::is_base_of<object, T> { };
+    template <>
+    struct variant_constructable<signature> : std::true_type { };
+    template <>
+    struct variant_constructable<std::string> : std::true_type { };
+    template <>
+    struct variant_constructable<bool> : std::true_type { };
+    template <typename T>
+    struct variant_constructable<std::vector<T>> :
+            variant_constructable<T> { };
+    template <typename T, typename... Args>
+    struct variant_constructable<std::tuple<T, Args...>> :
+            and_type<variant_constructable<T>,
+                     variant_constructable<std::tuple<Args...>>> { };
+    template <typename T>
+    struct variant_constructable<std::tuple<T>> :
+            variant_constructable<T> { };
+    template <typename K, typename V>
+    struct variant_constructable<std::map<K, V>> :
+            and_type<variant_constructable<K>,
+                     variant_constructable<V>> { };
+
+    template <typename T>
+    struct variant_constructable<const T> : variant_constructable<T> { };
 
     namespace {
         template <typename T>
@@ -242,6 +301,7 @@ namespace ipcgull {
 
     template <typename T>
     variant to_variant(const T& t) {
+        static_assert(variant_constructable<T>::value);
         return _variant_helper<T>::make(t);
     }
 

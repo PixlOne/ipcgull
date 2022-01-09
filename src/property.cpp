@@ -16,29 +16,35 @@
  *
  */
 
+#include <ipcgull/interface.h>
 #include <ipcgull/property.h>
 
 using namespace ipcgull;
 
-variant property::get() const {
-    if(permissions() & readable)
+variant base_property::get_variant() const {
+    if(permissions() & property_readable)
         return _get();
     throw permission_denied("property not readable");
 }
 
 ///TODO: org.freedesktop.DBus.Properties support
-bool property::set(const variant &value) const {
-    if(!(permissions() & writeable))
+bool base_property::set_variant(const variant &value) {
+    if(!(permissions() & property_writeable))
         throw permission_denied("property not writeable");
     if(_validate(value))
         return _set(value);
     return false;
 }
 
-const variant_type& property::type() const {
+const variant_type& base_property::type() const {
     return _type;
 }
 
-property::permission_mode property::permissions() const {
+property_permissions base_property::permissions() const {
     return _perms;
+}
+
+
+void base_property::notify_change() const {
+    /// TODO: Support PropertiesChanged signal
 }

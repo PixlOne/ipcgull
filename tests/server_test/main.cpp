@@ -88,23 +88,23 @@ private:
 public:
     sample_interface(const std::shared_ptr<ipcgull::server>& server,
                      const std::shared_ptr<ipcgull::node>& o,
-                     const std::shared_ptr<int>& ret) :
+                     const ipcgull::property<int>& ret) :
     ipcgull::interface("pizza.pixl.ipcgull.test.sample", {
-            {"echo", {echo, {"input"}, {"output"}}},
-            {"print", {print, {"input"}}},
-            {"stop", {this, &sample_interface::stop}},
-            {"cut_string", {cut_string, {"input"}, {"cut", "original_length"}}},
-            {"drop", {this, &sample_interface::drop}},
-            {"set_obj", {set_sample_object, {"object", "value"}}},
-            {"get_obj", {get_sample_object, {"object"}, {"value"}}}
+            {"Echo", {echo, {"input"}, {"output"}}},
+            {"Print", {print, {"input"}}},
+            {"Stop", {this, &sample_interface::stop}},
+            {"CutString", {cut_string, {"input"}, {"cut", "original_length"}}},
+            {"Drop", {this, &sample_interface::drop}},
+            {"SetObject", {set_sample_object, {"object", "value"}}},
+            {"GetObject", {get_sample_object, {"object"}, {"value"}}}
     }, {
-            {"return_code", {ret, ipcgull::property::full}}
+            {"ReturnCode", ret}
         },{
-            {"input_received", ipcgull::make_signal<std::string>({"line"})}
+            {"InputReceived", ipcgull::make_signal<std::string>({"line"})}
     }), _server (server), owner (o) { }
 
     void input_received(const std::string& line) {
-        emit_signal("input_received", line);
+        emit_signal("InputReceived", line);
     }
 };
 
@@ -113,16 +113,16 @@ int main() {
                                        SERVER_ROOT,
                                        default_mode);
 
-    auto sample_property = std::make_shared<int>(0);
+    auto ret = ipcgull::property<int>(ipcgull::property_full_permissions);
 
     auto root = ipcgull::node::make_root("sample");
     auto ptr = std::make_shared<sample_object>(10);
     root->manage(ptr);
     root->add_server(server);
     auto iface = root->make_interface<sample_interface>(
-            server, root, sample_property);
+            server, root, ret);
 
-    std::thread signal_thread([iface, server]() {
+    std::thread signal_thread([iface, server, &ret]() {
         std::string line;
 
         while(std::getline(std::cin, line))
@@ -132,5 +132,5 @@ int main() {
     server->start();
     signal_thread.join();
 
-    return *sample_property;
+    return ret;
 }
