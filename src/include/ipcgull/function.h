@@ -160,6 +160,26 @@ namespace ipcgull {
                          arg_names, return_names) {
         }
 
+        template <typename T, typename... R, typename... Args>
+        function(T* t, std::tuple<R...>(T::*f)(Args...) const,
+                 const std::array<std::string, sizeof...(Args)>& arg_names,
+                 const std::array<std::string, sizeof...(R)>& return_names) :
+                function(std::function<std::tuple<R...>(Args...)>(
+                        [t, f](Args... args)->std::tuple<R...> {
+                            return (t->*f)(args...); }),
+                         arg_names, return_names) {
+        }
+
+        template <typename T, typename... R, typename... Args>
+        function(const T* t, std::tuple<R...>(T::*f)(Args...) const,
+                 const std::array<std::string, sizeof...(Args)>& arg_names,
+                 const std::array<std::string, sizeof...(R)>& return_names) :
+                function(std::function<std::tuple<R...>(Args...)>(
+                        [t, f](Args... args)->std::tuple<R...> {
+                            return (t->*f)(args...); }),
+                         arg_names, return_names) {
+        }
+
         template <typename... R>
         function(const std::function<std::tuple<R...>()>& f,
                 const std::array<std::string, sizeof...(R)>& return_names) :
@@ -177,6 +197,24 @@ namespace ipcgull {
         function(T* t, std::tuple<R...>(T::*f)(),
                  const std::array<std::string, sizeof...(R)>& return_names) :
                  function(std::function<std::tuple<R...>()>(
+                        [t, f]()->std::tuple<R...> {
+                            return (t->*f)(); }),
+                         return_names) {
+        }
+
+        template <typename T, typename... R>
+        function(T* t, std::tuple<R...>(T::*f)() const,
+                 const std::array<std::string, sizeof...(R)>& return_names) :
+                function(std::function<std::tuple<R...>()>(
+                        [t, f]()->std::tuple<R...> {
+                            return (t->*f)(); }),
+                         return_names) {
+        }
+
+        template <typename T, typename... R>
+        function(const T* t, std::tuple<R...>(T::*f)() const,
+                 const std::array<std::string, sizeof...(R)>& return_names) :
+                function(std::function<std::tuple<R...>()>(
                         [t, f]()->std::tuple<R...> {
                             return (t->*f)(); }),
                          return_names) {
@@ -214,6 +252,24 @@ namespace ipcgull {
                          arg_names, return_names) {
         }
 
+        template <typename T, typename R, typename... Args>
+        function(T* t, R(T::*f)(Args...) const,
+                 const std::array<std::string, sizeof...(Args)>& arg_names,
+                 const std::array<std::string, 1>& return_names) :
+                function(std::function<R(Args...)>(
+                        [t, f](Args... args)->R { return (t->*f)(args...); }),
+                         arg_names, return_names) {
+        }
+
+        template <typename T, typename R, typename... Args>
+        function(const T* t, R(T::*f)(Args...) const,
+                 const std::array<std::string, sizeof...(Args)>& arg_names,
+                 const std::array<std::string, 1>& return_names) :
+                function(std::function<R(Args...)>(
+                        [t, f](Args... args)->R { return (t->*f)(args...); }),
+                         arg_names, return_names) {
+        }
+
         template <typename R>
         function(const std::function<R()>& f,
                  const std::array<std::string, 1>& return_names) :
@@ -236,7 +292,21 @@ namespace ipcgull {
         function(T* t, R(T::*f)(),
                  const std::array<std::string, 1>& return_names) :
                 function(std::function<R()>([t, f]()->R { return (t->*f)(); }),
-                         arg_names, return_names) {
+                         {}, return_names) {
+        }
+
+        template <typename T, typename R>
+        function(T* t, R(T::*f)() const,
+                 const std::array<std::string, 1>& return_names) :
+                function(std::function<R()>([t, f]()->R { return (t->*f)(); }),
+                         {}, return_names) {
+        }
+
+        template <typename T, typename R>
+        function(const T* t, R(T::*f)() const,
+                 const std::array<std::string, 1>& return_names) :
+                function(std::function<R()>([t, f]()->R { return (t->*f)(); }),
+                         {}, return_names) {
         }
 
         template <typename... Args>
@@ -261,6 +331,22 @@ namespace ipcgull {
                          arg_names) {
         }
 
+        template <typename T, typename... Args>
+        function(T* t, void(T::*f)(Args...) const,
+                 const std::array<std::string, sizeof...(Args)>& arg_names) :
+                function(std::function<void(Args...)>(
+                        [t, f](Args... args) { (t->*f)(args...); }),
+                         arg_names) {
+        }
+
+        template <typename T, typename... Args>
+        function(const T* t, void(T::*f)(Args...) const,
+                 const std::array<std::string, sizeof...(Args)>& arg_names) :
+                function(std::function<void(Args...)>(
+                        [t, f](Args... args) { (t->*f)(args...); }),
+                         arg_names) {
+        }
+
         function(const std::function<void()>& f) :
                 _f (_fn_generator<void>::make_fn(f)) { }
 
@@ -269,6 +355,14 @@ namespace ipcgull {
         template <typename T>
         function(T* t, void(T::*f)()) :
             function(std::function<void()>([t, f]() { (t->*f)(); })) { }
+
+        template <typename T>
+        function(T* t, void(T::*f)() const) :
+                function(std::function<void()>([t, f]() { (t->*f)(); })) { }
+
+        template <typename T>
+        function(const T* t, void(T::*f)() const) :
+                function(std::function<void()>([t, f]() { (t->*f)(); })) { }
 
         variant_tuple operator()(const variant_tuple& args) const;
 
