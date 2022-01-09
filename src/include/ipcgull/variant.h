@@ -176,7 +176,7 @@ namespace ipcgull {
             static variant make(const std::vector<T>& x) {
                 std::vector<variant> ret(x.size());
                 for(std::size_t i = 0; i < x.size(); ++i)
-                    ret[i] = _variant_helper<T>::make(x);
+                    ret[i] = _variant_helper<T>::make(x[i]);
 
                 return ret;
             }
@@ -290,7 +290,8 @@ namespace ipcgull {
 
         template <typename T>
         struct _normalize_type<std::shared_ptr<T>> {
-            typedef std::shared_ptr<typename _normalize_type<T>::type> type;
+            static_assert(std::is_base_of<object, T>::value_type);
+            typedef std::shared_ptr<object> type;
         };
     }
 
@@ -375,7 +376,7 @@ namespace ipcgull {
         template <typename T>
         struct _variant_type_helper<std::vector<T>> {
             static variant_type make() {
-                return _variant_type_helper<T>::make();
+                return variant_type::vector(_variant_type_helper<T>::make());
             }
         };
 
