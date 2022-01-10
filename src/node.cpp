@@ -29,37 +29,43 @@ namespace ipcgull {
     public:
         explicit _node(const std::string& name) : node(name) { }
         explicit _node(const std::string& name,
-                       const std::weak_ptr<node>& parent) :
+                       const std::shared_ptr<const node>& parent) :
                 node(name, parent) { }
     };
 }
 
-node::node(std::string name) : _name (std::move(name)) { }
+node::node(std::string name) : _name (std::move(name)),
+    _hierarchy_lock (std::make_shared<std::recursive_mutex>()) { }
 
 node::node(std::string name,
-           std::weak_ptr<node> parent) :
-           _name (std::move(name)), _parent (std::move(parent)) { }
+           const std::shared_ptr<const node>& parent) :
+           _name (std::move(name)), _hierarchy_lock (parent->_hierarchy_lock),
+           _parent (parent) { }
 
 node::~node() {
-    if(auto p = _parent.lock()) {
-        for(auto it = p->_children.begin(); it != p->_children.end(); ++it) {
-            if(it->lock().get() == this) {
-                p->_children.erase(it);
-                break;
-            }
-        }
-    }
+    std::lock_guard<std::recursive_mutex> lock(*_hierarchy_lock);
 
-    // Children can exist independently of parents
-    for(auto& x : _children) {
-        if(auto child = x.lock()) {
-            child->_name = tree_name();
-            child->_parent.reset();
-        }
+    if(auto p = _parent.lock()) {
+        assert(_parent_it != p->_children.end());
+        p->_children.erase(_parent_it);
     }
 
     for(auto& s : _servers)
         drop_server(s);
+
+    // Orphans are moved to the parent
+    for(auto& x : _children) {
+        assert(!x.expired());
+        if(auto child = x.lock()) {
+            // TODO: Move this into GDBus-specifc code somehow
+            child->_name = name() + "/" + child->_name;
+            child->_parent = _parent;
+            if(auto p = _parent.lock()) {
+                p->_children.push_front(x);
+                child->_parent_it = p->_children.cbegin();
+            }
+        }
+    }
 }
 
 [[maybe_unused]]
@@ -72,7 +78,8 @@ std::shared_ptr<node> node::make_root(const std::string& name) {
 
 [[maybe_unused]]
 std::shared_ptr<node> node::make_child(const std::string &name) const {
-    std::shared_ptr<node> ptr = std::make_shared<_node>(name, _self);
+    assert(!_self.expired());
+    std::shared_ptr<node> ptr = std::make_shared<_node>(name, _self.lock());
     ptr->_self = ptr;
 
     for(auto& s : _servers) {
@@ -81,6 +88,7 @@ std::shared_ptr<node> node::make_child(const std::string &name) const {
     }
 
     _children.push_front(ptr);
+    ptr->_parent_it = _children.cbegin();
 
     return ptr;
 }

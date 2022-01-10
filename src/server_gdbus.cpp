@@ -1064,6 +1064,7 @@ std::string node::full_name(const server& s) const {
 }
 
 std::string node::tree_name() const {
+    std::lock_guard<std::recursive_mutex> lock(*_hierarchy_lock);
     if(const auto parent = _parent.lock()) {
         return parent->tree_name() + "/" + name();
     } else {

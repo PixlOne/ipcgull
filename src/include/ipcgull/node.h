@@ -36,7 +36,9 @@ namespace ipcgull {
         std::list<std::weak_ptr<server>> _servers;
         std::string _name;
 
-        std::weak_ptr<node> _parent;
+        const std::shared_ptr<std::recursive_mutex> _hierarchy_lock;
+        std::weak_ptr<const node> _parent;
+        std::list<std::weak_ptr<node>>::const_iterator _parent_it;
         std::weak_ptr<node> _self;
         mutable std::list<std::weak_ptr<node>> _children;
 
@@ -51,7 +53,8 @@ namespace ipcgull {
 
         friend class _node;
         explicit node(std::string name);
-        explicit node(std::string name, std::weak_ptr<node> parent);
+        explicit node(std::string name,
+                      const std::shared_ptr<const node>& parent);
     public:
         ~node();
 
@@ -70,15 +73,33 @@ namespace ipcgull {
             static_assert(std::is_base_of<interface, T>::value,
                     "T must be an interface");
             auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
-            ptr->_owner = _self;
+
+            if(_interfaces.count(ptr->name()))
+                throw std::invalid_argument("duplicate interface");
 
             assert(!_self.expired());
-            for(auto& s : _servers) {
-                if(auto server = s.lock())
-                    server->add_interface(_self.lock(), *ptr);
+
+            {
+                std::list<std::shared_ptr<server>> added_servers;
+                try {
+                    for(auto& s : _servers) {
+                        if(auto server = s.lock()) {
+                            server->add_interface(_self.lock(), *ptr);
+                            added_servers.push_front(server);
+                        }
+                    }
+                } catch(std::exception& e) {
+                    while(!added_servers.empty()) {
+                        auto& s = added_servers.front();
+                        s->drop_interface(full_name(*s), ptr->name());
+                        added_servers.pop_front();
+                    }
+                    throw;
+                }
             }
 
-            _interfaces.emplace(ptr->name(), ptr);
+            ptr->_owner = _self;
+            _interfaces.emplace(ptr->name(), ptr).second;
 
             return ptr;
         }
