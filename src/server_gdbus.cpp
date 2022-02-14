@@ -116,7 +116,7 @@ struct server::internal {
             const char* c_str = g_variant_get_string(v, &length);
             return std::string(c_str, length);
         } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_BOOLEAN)) {
-            return {g_variant_get_boolean(v)};
+            return {static_cast<bool>(g_variant_get_boolean(v)) };
         } else if(g_variant_type_is_subtype_of(type,
                                                G_VARIANT_TYPE_DICTIONARY)) {
             const gsize length = g_variant_n_children(v);
@@ -326,7 +326,17 @@ struct server::internal {
                             "Unknown interface");
                     return;
                 }
-                const auto& functions = iface_it->second->functions();
+
+                auto iface = iface_it->second.lock();
+                if(!iface) {
+                    g_dbus_method_invocation_return_error(
+                            invocation, G_DBUS_ERROR,
+                            G_DBUS_ERROR_UNKNOWN_INTERFACE,
+                            "Interface expired");
+                    return;
+                }
+
+                const auto& functions = iface->functions();
                 auto f_it = functions.find(method_name);
 
                 if(f_it == functions.end()) {
@@ -430,8 +440,16 @@ struct server::internal {
                             "Unknown interface");
                     return nullptr;
                 }
+                auto iface = iface_it->second.lock();
+                if(!iface) {
+                    g_set_error(error, G_DBUS_ERROR,
+                                G_DBUS_ERROR_UNKNOWN_INTERFACE,
+                                "Interface expired");
+                    return nullptr;
+                }
+
                 try {
-                    const auto& property = iface_it->second->get_property(
+                    const auto& property = iface->get_property(
                             property_name);
 
                     return i->to_gvariant(property.get_variant(),
@@ -491,8 +509,16 @@ struct server::internal {
                     return false;
                 }
 
+                auto iface = iface_it->second.lock();
+                if(!iface) {
+                    g_set_error(error, G_DBUS_ERROR,
+                            G_DBUS_ERROR_UNKNOWN_INTERFACE,
+                            "Interface expired");
+                    return false;
+                }
+
                 try {
-                    auto& p = iface_it->second->get_property(
+                    auto& p = iface->get_property(
                             property_name);
 
                     try {

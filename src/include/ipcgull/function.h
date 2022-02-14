@@ -185,7 +185,7 @@ namespace ipcgull {
                 const std::array<std::string, sizeof...(R)>& return_names) :
                 _f (_fn_generator<std::tuple<R...>>::make_fn(f)),
                 _return_names (return_names.begin(), return_names.end()),
-                _return_types (make_variant_type<R>()...) { }
+                _return_types ({make_variant_type<R>()...}) { }
 
         template <typename... R>
         function(std::tuple<R...>(*f)(),

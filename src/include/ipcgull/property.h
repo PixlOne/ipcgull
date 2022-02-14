@@ -224,14 +224,14 @@ namespace ipcgull {
 
         property& operator=(const property& o) {
             if(this != &o) {
-                operator=(o._data);
+                operator=(*o._data);
             }
 
             return *this;
         }
         property& operator=(property&& o) {
             if(this != &o) {
-                operator=(std::move(o._data));
+                operator=(std::move(*o._data));
                 o.notify_change();
             }
 

@@ -35,8 +35,17 @@ interface::interface(std::string name,
                     _signals (std::move(s)) {
 }
 
+interface::interface(std::string name,
+                     tables t) :
+        _name (std::move(name)),
+        _functions (std::move(std::get<0>(t))),
+        _properties (std::move(std::get<1>(t))),
+        _signals (std::move(std::get<2>(t))) {
+}
+
 interface::~interface() {
-    assert(_owner.expired());
+    if(auto owner = _owner.lock())
+        owner->drop_interface(_name);
 }
 
 interface::interface(interface&& o) noexcept :

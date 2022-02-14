@@ -36,6 +36,7 @@ namespace ipcgull {
         typedef std::map<std::string, function> function_table;
         typedef std::map<std::string, base_property> property_table;
         typedef std::map<std::string, signal> signal_table;
+        typedef std::tuple<function_table, property_table, signal_table> tables;
     private:
         const std::string _name;
         const function_table _functions;
@@ -56,6 +57,9 @@ namespace ipcgull {
                   function_table f,
                   property_table p,
                   signal_table s);
+
+        explicit interface(std::string name,
+                           tables t={});
 
         ~interface();
 

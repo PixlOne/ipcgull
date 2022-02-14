@@ -102,7 +102,8 @@ std::shared_ptr<node> node::make_child(const std::string &name) const {
         if(auto server = s.lock())
             server->drop_interface(full_name(*server), name);
     }
-    if_it->second->_owner.reset();
+    if(auto lock = if_it->second.lock())
+        lock->_owner.reset();
     _interfaces.erase(if_it);
 
     return true;
@@ -120,8 +121,10 @@ void node::add_server(const std::weak_ptr<server>& s) {
         const std::string node_path = full_name(*server);
         for(auto& x : _interfaces) {
             try {
-                server->add_interface(self, *x.second);
-                interfaces.insert(x.second);
+                if(auto iface = x.second.lock()) {
+                    server->add_interface(self, *iface);
+                    interfaces.insert(iface);
+                }
             } catch(std::exception& e) {
                 for(auto& iface : interfaces)
                     server->drop_interface(node_path, iface->name());
@@ -177,7 +180,7 @@ void node::emit_signal(const std::string& iface,
     }
 }
 
-const std::map<std::string, std::shared_ptr<interface>>&
+const std::map<std::string, std::weak_ptr<interface>>&
 node::interfaces() const {
     return _interfaces;
 }

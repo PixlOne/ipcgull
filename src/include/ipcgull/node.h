@@ -32,7 +32,7 @@ namespace ipcgull {
     class server;
 
     class node {
-        std::map<std::string, std::shared_ptr<interface>> _interfaces;
+        std::map<std::string, std::weak_ptr<interface>> _interfaces;
         std::list<std::weak_ptr<server>> _servers;
         std::string _name;
 
@@ -69,10 +69,10 @@ namespace ipcgull {
         std::shared_ptr<node> make_child(const std::string& name) const;
 
         template <typename T, typename... Args>
-        [[maybe_unused]] std::shared_ptr<T> make_interface(Args... args) {
+        [[maybe_unused]] std::shared_ptr<T> make_interface(Args&&... args) {
             static_assert(std::is_base_of<interface, T>::value,
                     "T must be an interface");
-            auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
+            auto ptr = std::make_shared<T>(std::forward<Args&&>(args)...);
 
             if(_interfaces.count(ptr->name()))
                 throw std::invalid_argument("duplicate interface");
@@ -112,7 +112,7 @@ namespace ipcgull {
         void manage(const std::weak_ptr<object>& obj);
         [[nodiscard]] const std::weak_ptr<object>& managed() const;
 
-        [[nodiscard]] const std::map<std::string, std::shared_ptr<interface>>&
+        [[nodiscard]] const std::map<std::string, std::weak_ptr<interface>>&
             interfaces() const;
 
         [[nodiscard]] const std::string& name() const;
