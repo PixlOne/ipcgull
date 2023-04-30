@@ -158,10 +158,10 @@ variant_type variant_type::tuple(std::vector<variant_type>&& types) {
         auto gvar = const_g_type(types[i].data);
         assert(gvar);
         g_types[i] = gvar;
-        types[i] = {};
     }
     variant_type type {};
     type.data = g_type_to_any(g_variant_type_new_tuple(g_types.get(), size));
+    types.clear();
     return type;
 }
 
