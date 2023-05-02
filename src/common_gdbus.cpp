@@ -82,7 +82,7 @@ variant_type::variant_type(const std::type_info& primitive) {
     else if(primitive == typeid(bool))
         type = G_VARIANT_TYPE_BOOLEAN;
     else
-        assert(!"Invalid GVariant type");
+        throw std::runtime_error("Invalid GVariant type");
     data = g_type_to_any(g_variant_type_copy(type));
 }
 

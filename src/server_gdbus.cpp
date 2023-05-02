@@ -293,7 +293,7 @@ struct server::internal {
             return g_variant_new_array(nullptr, raw_array.get(), map.size());
         } else {
             // This should not happen
-            assert(!"converted unhandled variant type");
+            throw std::runtime_error("converted unhandled variant type");
         }
     }
 
@@ -478,6 +478,7 @@ struct server::internal {
                         G_DBUS_ERROR_FAILED,
                         "Internal error");
             assert(!"method call on non-existent server");
+            return nullptr;
         }
     }
 
@@ -564,8 +565,8 @@ struct server::internal {
                         G_DBUS_ERROR_FAILED,
                         "Internal error");
             assert(!"method call on non-existent server");
+            return false;
         }
-
     }
 
     static void name_acquired_handler(
