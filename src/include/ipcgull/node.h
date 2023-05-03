@@ -99,7 +99,7 @@ namespace ipcgull {
             }
 
             ptr->_owner = _self;
-            _interfaces.emplace(ptr->name(), ptr).second;
+            _interfaces.emplace(ptr->name(), ptr);
 
             return ptr;
         }
