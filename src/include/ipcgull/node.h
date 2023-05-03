@@ -19,13 +19,14 @@
 #ifndef IPCGULL_NODE_H
 #define IPCGULL_NODE_H
 
+#include <ipcgull/variant.h>
+#include <ipcgull/server.h>
 #include <map>
 #include <list>
 #include <memory>
 #include <string>
-#include <ipcgull/variant.h>
+#include <stdexcept>
 #include <cassert>
-#include <ipcgull/server.h>
 
 namespace ipcgull {
     class interface;
