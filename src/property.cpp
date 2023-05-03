@@ -22,16 +22,16 @@
 using namespace ipcgull;
 
 variant base_property::get_variant() const {
-    if(permissions() & property_readable)
+    if (permissions() & property_readable)
         return _get();
     throw permission_denied("property not readable");
 }
 
 ///TODO: org.freedesktop.DBus.Properties support
-bool base_property::set_variant(const variant &value) {
-    if(!(permissions() & property_writeable))
+bool base_property::set_variant(const variant& value) {
+    if (!(permissions() & property_writeable))
         throw permission_denied("property not writeable");
-    if(_validate(value))
+    if (_validate(value))
         return _set(value);
     return false;
 }

@@ -45,8 +45,8 @@ namespace ipcgull {
 
     class _server : public server {
     public:
-        template <typename... Args>
-        explicit _server(Args... args) : server(std::forward<Args>(args)...) { }
+        template<typename... Args>
+        explicit _server(Args... args) : server(std::forward<Args>(args)...) {}
     };
 }
 
@@ -56,7 +56,7 @@ struct server::internal {
         std::map<std::string, guint> interfaces;
 
         explicit internal_node(std::weak_ptr<node> obj) :
-            object (std::move(obj)) { }
+                object(std::move(obj)) {}
     };
 
     std::map<std::string, internal_node> nodes;
@@ -76,10 +76,10 @@ struct server::internal {
     std::atomic_bool stop_requested = false;
 
     variant from_gvariant(GVariant* v) {
-        if(v == nullptr)
+        if (v == nullptr)
             return variant_tuple();
 
-        const auto *type = g_variant_get_type(v);
+        const auto* type = g_variant_get_type(v);
 
         if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_INT16)) {
             return g_variant_get_int16(v);
@@ -97,31 +97,31 @@ struct server::internal {
             return g_variant_get_double(v);
         } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_BYTE)) {
             return g_variant_get_byte(v);
-        } else if(g_variant_type_is_subtype_of(type,
-                                               G_VARIANT_TYPE_OBJECT_PATH)) {
+        } else if (g_variant_type_is_subtype_of(type,
+                                                G_VARIANT_TYPE_OBJECT_PATH)) {
             gsize length;
-            std::string path {g_variant_get_string(v, &length)};
-            if(auto obj = nodes.at(path).object.lock()) {
-                if(auto ptr = obj->managed().lock())
+            std::string path{g_variant_get_string(v, &length)};
+            if (auto obj = nodes.at(path).object.lock()) {
+                if (auto ptr = obj->managed().lock())
                     return ptr;
             }
             throw std::out_of_range("Node does not manage an object");
-        } else if(g_variant_type_is_subtype_of(type,
-                                               G_VARIANT_TYPE_SIGNATURE)) {
+        } else if (g_variant_type_is_subtype_of(type,
+                                                G_VARIANT_TYPE_SIGNATURE)) {
             gsize length;
             const char* c_str = g_variant_get_string(v, &length);
             return signature(c_str, length);
-        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_STRING)) {
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_STRING)) {
             gsize length;
             const char* c_str = g_variant_get_string(v, &length);
             return std::string(c_str, length);
-        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_BOOLEAN)) {
-            return {static_cast<bool>(g_variant_get_boolean(v)) };
-        } else if(g_variant_type_is_subtype_of(type,
-                                               G_VARIANT_TYPE_DICTIONARY)) {
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_BOOLEAN)) {
+            return {static_cast<bool>(g_variant_get_boolean(v))};
+        } else if (g_variant_type_is_subtype_of(type,
+                                                G_VARIANT_TYPE_DICTIONARY)) {
             const gsize length = g_variant_n_children(v);
             std::map<variant, variant> dict;
-            for(gsize i = 0; i < length; ++i) {
+            for (gsize i = 0; i < length; ++i) {
                 auto* element = g_variant_get_child_value(v, i);
                 assert(g_variant_n_children(element) == 2);
                 auto* key = g_variant_get_child_value(element, 0);
@@ -130,7 +130,7 @@ struct server::internal {
                     dict.emplace(std::piecewise_construct,
                                  std::forward_as_tuple(from_gvariant(key)),
                                  std::forward_as_tuple(from_gvariant(val)));
-                } catch(std::exception& e) {
+                } catch (std::exception& e) {
                     g_variant_unref(key);
                     g_variant_unref(val);
                     g_variant_unref(element);
@@ -141,14 +141,14 @@ struct server::internal {
                 g_variant_unref(element);
             }
             return dict;
-        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_TUPLE)) {
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_TUPLE)) {
             const gsize length = g_variant_n_children(v);
             std::vector<variant> array(length);
-            for(gsize i = 0; i < length; ++i) {
+            for (gsize i = 0; i < length; ++i) {
                 auto* child_gvar = g_variant_get_child_value(v, i);
                 try {
                     array[i] = from_gvariant(child_gvar);
-                } catch(std::exception& e) {
+                } catch (std::exception& e) {
                     g_variant_unref(child_gvar);
                     throw;
                 }
@@ -156,14 +156,14 @@ struct server::internal {
             }
 
             return variant_tuple(array);
-        } else if(g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_ARRAY)) {
+        } else if (g_variant_type_is_subtype_of(type, G_VARIANT_TYPE_ARRAY)) {
             const gsize length = g_variant_n_children(v);
             std::vector<variant> array(length);
-            for(gsize i = 0; i < length; ++i) {
+            for (gsize i = 0; i < length; ++i) {
                 auto* child_gvar = g_variant_get_child_value(v, i);
                 try {
                     array[i] = from_gvariant(child_gvar);
-                } catch(std::exception& e) {
+                } catch (std::exception& e) {
                     g_variant_unref(child_gvar);
                     throw;
                 }
@@ -178,44 +178,44 @@ struct server::internal {
 
     GVariant* to_gvariant(const variant& v,
                           const variant_type& type) {
-        if(std::holds_alternative<int16_t>(v)) {
+        if (std::holds_alternative<int16_t>(v)) {
             return g_variant_new_int16(std::get<int16_t>(v));
-        } else if(std::holds_alternative<uint16_t>(v)) {
+        } else if (std::holds_alternative<uint16_t>(v)) {
             return g_variant_new_uint16(std::get<uint16_t>(v));
-        } else if(std::holds_alternative<int32_t>(v)) {
+        } else if (std::holds_alternative<int32_t>(v)) {
             return g_variant_new_int32(std::get<int32_t>(v));
-        } else if(std::holds_alternative<uint32_t>(v)) {
+        } else if (std::holds_alternative<uint32_t>(v)) {
             return g_variant_new_uint32(std::get<uint32_t>(v));
-        } else if(std::holds_alternative<int64_t>(v)) {
+        } else if (std::holds_alternative<int64_t>(v)) {
             return g_variant_new_int64(std::get<int64_t>(v));
-        } else if(std::holds_alternative<uint64_t>(v)) {
+        } else if (std::holds_alternative<uint64_t>(v)) {
             return g_variant_new_uint64(std::get<uint64_t>(v));
-        } else if(std::holds_alternative<double>(v)) {
+        } else if (std::holds_alternative<double>(v)) {
             return g_variant_new_double(std::get<double>(v));
-        } else if(std::holds_alternative<uint8_t>(v)) {
+        } else if (std::holds_alternative<uint8_t>(v)) {
             return g_variant_new_byte(std::get<uint8_t>(v));
-        } else if(std::holds_alternative<std::shared_ptr<object>>(v)) {
+        } else if (std::holds_alternative<std::shared_ptr<object>>(v)) {
             auto* ptr = std::get<std::shared_ptr<object>>(v).get();
             // May throw
             try {
                 const auto object_path = object_path_lookup.at(ptr);
                 return g_variant_new_object_path(object_path.c_str());
-            } catch(std::out_of_range& e) {
+            } catch (std::out_of_range& e) {
                 throw std::runtime_error("Invalid object path");
             }
-        } else if(std::holds_alternative<signature>(v)) {
+        } else if (std::holds_alternative<signature>(v)) {
             return g_variant_new_signature(std::get<signature>(v).c_str());
-        } else if(std::holds_alternative<std::string>(v)) {
+        } else if (std::holds_alternative<std::string>(v)) {
             return g_variant_new_string(std::get<std::string>(v).c_str());
-        } else if(std::holds_alternative<bool>(v)) {
+        } else if (std::holds_alternative<bool>(v)) {
             return g_variant_new_boolean(std::get<bool>(v));
-        } else if(std::holds_alternative<variant_tuple>(v)) {
+        } else if (std::holds_alternative<variant_tuple>(v)) {
             const std::vector<variant>& vector = std::get<variant_tuple>(v);
-            std::unique_ptr<GVariant*[]> raw_array(
-                    new GVariant*[vector.size()]);
-            variant_type child_type {};
-            for(gsize i = 0; i < vector.size(); ++i) {
-                if(child_type == variant_type()) {
+            std::unique_ptr<GVariant* []> raw_array(
+                    new GVariant* [vector.size()]);
+            variant_type child_type{};
+            for (gsize i = 0; i < vector.size(); ++i) {
+                if (child_type == variant_type()) {
                     child_type = variant_type::from_internal(
                             g_variant_type_first(const_g_type(type.raw_data())
                             ));
@@ -228,30 +228,30 @@ struct server::internal {
                 assert(child_type != variant_type());
                 try {
                     raw_array[i] = to_gvariant(vector[i], child_type);
-                } catch(std::exception& e) {
-                    for(int j = i-1; j >= 0; --j)
+                } catch (std::exception& e) {
+                    for (int j = i - 1; j >= 0; --j)
                         g_variant_unref(g_variant_ref_sink(raw_array[j]));
                     throw;
                 }
             }
             return g_variant_new_tuple(raw_array.get(), vector.size());
-        } else if(std::holds_alternative<std::vector<variant>>(v)) {
+        } else if (std::holds_alternative<std::vector<variant>>(v)) {
             const auto& vector = std::get<std::vector<variant>>(v);
             const auto child_type = variant_type::from_internal(
                     g_variant_type_element(const_g_type(type.raw_data())
                     ));
 
-            if(vector.empty())
+            if (vector.empty())
                 return g_variant_new_array(
                         const_g_type(child_type.raw_data()),
                         nullptr, 0);
 
-            std::unique_ptr<GVariant*[]> raw_array(new GVariant*[vector.size()]);
-            for(gsize i = 0; i < vector.size(); ++i) {
+            std::unique_ptr<GVariant* []> raw_array(new GVariant* [vector.size()]);
+            for (gsize i = 0; i < vector.size(); ++i) {
                 try {
                     raw_array[i] = to_gvariant(vector[i], child_type);
-                } catch(std::exception& e) {
-                    for(int j = i-1; j >= 0; --j)
+                } catch (std::exception& e) {
+                    for (int j = i - 1; j >= 0; --j)
                         g_variant_unref(g_variant_ref_sink(raw_array[j]));
                     throw;
                 }
@@ -260,19 +260,19 @@ struct server::internal {
             return g_variant_new_array(
                     const_g_type(child_type.raw_data()),
                     raw_array.get(), vector.size());
-        } else if(std::holds_alternative<std::map<variant, variant>>(v)) {
+        } else if (std::holds_alternative<std::map<variant, variant>>(v)) {
             const auto& map = std::get<std::map<variant, variant>>(v);
             const auto child_type = variant_type::from_internal(
                     g_variant_type_element(const_g_type(type.raw_data())
                     ));
 
-            if(map.empty())
+            if (map.empty())
                 return g_variant_new_array(
                         const_g_type(child_type), nullptr, 0);
 
             gsize i = 0;
-            std::unique_ptr<GVariant*[]> raw_array(new GVariant*[map.size()]);
-            for(auto& x : map) {
+            std::unique_ptr<GVariant* []> raw_array(new GVariant* [map.size()]);
+            for (auto& x: map) {
                 const auto key_type = variant_type::from_internal(
                         g_variant_type_key(const_g_type(child_type)));
                 const auto value_type = variant_type::from_internal(
@@ -282,8 +282,8 @@ struct server::internal {
                     raw_array[i] = g_variant_new_dict_entry(
                             to_gvariant(x.first, key_type),
                             to_gvariant(x.second, value_type));
-                } catch(std::exception& e) {
-                    for(int j = i-1; j >= 0; --j)
+                } catch (std::exception& e) {
+                    for (int j = i - 1; j >= 0; --j)
                         g_variant_unref(g_variant_ref_sink(raw_array[j]));
                     throw;
                 }
@@ -299,27 +299,27 @@ struct server::internal {
 
     // C-style GDBus callbacks
     static void gdbus_method_call(
-            [[maybe_unused]] GDBusConnection *connection,
-            [[maybe_unused]] const gchar *sender,
-            const gchar *object_path,
-            const gchar *interface_name,
-            const gchar *method_name,
-            GVariant *parameters,
-            GDBusMethodInvocation *invocation,
+            [[maybe_unused]] GDBusConnection* connection,
+            [[maybe_unused]] const gchar* sender,
+            const gchar* object_path,
+            const gchar* interface_name,
+            const gchar* method_name,
+            GVariant* parameters,
+            GDBusMethodInvocation* invocation,
             gpointer internal_weak) {
-        if(auto i = static_cast<std::weak_ptr<internal>*>(
+        if (auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
             std::lock_guard<std::recursive_mutex> lock(i->server_lock);
             auto weak_node = i->nodes.find(object_path);
-            if(weak_node == i->nodes.end()) {
+            if (weak_node == i->nodes.end()) {
                 g_dbus_method_invocation_return_error(
                         invocation, G_DBUS_ERROR,
                         G_DBUS_ERROR_UNKNOWN_OBJECT, "Unknown object");
                 return;
             }
-            if(auto node = weak_node->second.object.lock()) {
+            if (auto node = weak_node->second.object.lock()) {
                 auto iface_it = node->interfaces().find(interface_name);
-                if(iface_it == node->interfaces().end()) {
+                if (iface_it == node->interfaces().end()) {
                     g_dbus_method_invocation_return_error(
                             invocation, G_DBUS_ERROR,
                             G_DBUS_ERROR_UNKNOWN_INTERFACE,
@@ -328,7 +328,7 @@ struct server::internal {
                 }
 
                 auto iface = iface_it->second.lock();
-                if(!iface) {
+                if (!iface) {
                     g_dbus_method_invocation_return_error(
                             invocation, G_DBUS_ERROR,
                             G_DBUS_ERROR_UNKNOWN_INTERFACE,
@@ -339,7 +339,7 @@ struct server::internal {
                 const auto& functions = iface->functions();
                 auto f_it = functions.find(method_name);
 
-                if(f_it == functions.end()) {
+                if (f_it == functions.end()) {
                     g_dbus_method_invocation_return_error(
                             invocation, G_DBUS_ERROR,
                             G_DBUS_ERROR_UNKNOWN_METHOD,
@@ -352,7 +352,7 @@ struct server::internal {
                     try {
                         const auto args = std::get<variant_tuple>(v_args);
                         const auto response = f_it->second(args);
-                        if(response.empty()) {
+                        if (response.empty()) {
                             g_dbus_method_invocation_return_value(
                                     invocation, nullptr);
                             return;
@@ -366,32 +366,32 @@ struct server::internal {
                         g_dbus_method_invocation_return_value(
                                 invocation, g_response);
                         return;
-                    } catch(std::bad_variant_access& e) {
+                    } catch (std::bad_variant_access& e) {
                         g_dbus_method_invocation_return_error(
                                 invocation, G_DBUS_ERROR,
                                 G_DBUS_ERROR_INVALID_SIGNATURE,
                                 "Invalid argument type");
                         return;
-                    } catch(std::invalid_argument& e) {
+                    } catch (std::invalid_argument& e) {
                         g_dbus_method_invocation_return_error(
                                 invocation, G_DBUS_ERROR,
                                 G_DBUS_ERROR_INVALID_ARGS,
                                 "Invalid arguments");
                         return;
-                    } catch(std::exception& e) {
+                    } catch (std::exception& e) {
                         g_dbus_method_invocation_return_error(
                                 invocation, G_DBUS_ERROR,
                                 G_DBUS_ERROR_FAILED,
                                 "%s", e.what());
                         return;
                     }
-                } catch(std::invalid_argument& e) {
+                } catch (std::invalid_argument& e) {
                     g_dbus_method_invocation_return_error(
                             invocation, G_DBUS_ERROR,
                             G_DBUS_ERROR_INVALID_SIGNATURE,
                             "Unimplemented argument type");
                     return;
-                } catch(std::out_of_range& e) {
+                } catch (std::out_of_range& e) {
                     g_dbus_method_invocation_return_error(
                             invocation, G_DBUS_ERROR,
                             G_DBUS_ERROR_UNKNOWN_OBJECT,
@@ -407,41 +407,41 @@ struct server::internal {
             }
         } else {
             g_dbus_method_invocation_return_error(
-                invocation, G_DBUS_ERROR,
-                G_DBUS_ERROR_FAILED,
-                "Internal error");
+                    invocation, G_DBUS_ERROR,
+                    G_DBUS_ERROR_FAILED,
+                    "Internal error");
             assert(!"method call on non-existent server");
         }
     }
 
     static GVariant* gdbus_get_property(
-            [[maybe_unused]] GDBusConnection *connection,
-            [[maybe_unused]] const gchar *sender,
-            const gchar *object_path,
-            const gchar *interface_name,
-            const gchar *property_name,
-            GError **error,
+            [[maybe_unused]] GDBusConnection* connection,
+            [[maybe_unused]] const gchar* sender,
+            const gchar* object_path,
+            const gchar* interface_name,
+            const gchar* property_name,
+            GError** error,
             gpointer internal_weak) {
-        if(auto i = static_cast<std::weak_ptr<internal>*>(
+        if (auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
             std::lock_guard<std::recursive_mutex> lock(i->server_lock);
             auto weak_node = i->nodes.find(object_path);
-            if(weak_node == i->nodes.end()) {
+            if (weak_node == i->nodes.end()) {
                 g_set_error(error, G_DBUS_ERROR,
                             G_DBUS_ERROR_UNKNOWN_OBJECT,
                             "Unknown object");
                 return nullptr;
             }
-            if(auto node = weak_node->second.object.lock()) {
+            if (auto node = weak_node->second.object.lock()) {
                 auto iface_it = node->interfaces().find(interface_name);
-                if(iface_it == node->interfaces().end()) {
+                if (iface_it == node->interfaces().end()) {
                     g_set_error(error, G_DBUS_ERROR,
-                            G_DBUS_ERROR_UNKNOWN_INTERFACE,
-                            "Unknown interface");
+                                G_DBUS_ERROR_UNKNOWN_INTERFACE,
+                                "Unknown interface");
                     return nullptr;
                 }
                 auto iface = iface_it->second.lock();
-                if(!iface) {
+                if (!iface) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_UNKNOWN_INTERFACE,
                                 "Interface expired");
@@ -454,12 +454,12 @@ struct server::internal {
 
                     return i->to_gvariant(property.get_variant(),
                                           property.type());
-                } catch(std::out_of_range& e) {
+                } catch (std::out_of_range& e) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_UNKNOWN_PROPERTY,
                                 "Unknown property");
                     return nullptr;
-                } catch(std::exception& e) {
+                } catch (std::exception& e) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_FAILED,
                                 "%s", e.what());
@@ -469,8 +469,8 @@ struct server::internal {
             } else {
                 // This shouldn't happen, but handle the case it does.
                 g_set_error(error, G_DBUS_ERROR,
-                        G_DBUS_ERROR_UNKNOWN_OBJECT,
-                        "Object no longer exists");
+                            G_DBUS_ERROR_UNKNOWN_OBJECT,
+                            "Object no longer exists");
                 return nullptr;
             }
         } else {
@@ -483,27 +483,27 @@ struct server::internal {
     }
 
     static gboolean gdbus_set_property(
-            [[maybe_unused]] GDBusConnection *connection,
-            [[maybe_unused]] const gchar *sender,
-            const gchar *object_path,
-            const gchar *interface_name,
-            const gchar *property_name,
-            GVariant *value,
-            GError **error,
+            [[maybe_unused]] GDBusConnection* connection,
+            [[maybe_unused]] const gchar* sender,
+            const gchar* object_path,
+            const gchar* interface_name,
+            const gchar* property_name,
+            GVariant* value,
+            GError** error,
             gpointer internal_weak) {
-        if(auto i = static_cast<std::weak_ptr<internal>*>(
+        if (auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
             std::lock_guard<std::recursive_mutex> lock(i->server_lock);
             auto weak_node = i->nodes.find(object_path);
-            if(weak_node == i->nodes.end()) {
+            if (weak_node == i->nodes.end()) {
                 g_set_error(error, G_DBUS_ERROR,
                             G_DBUS_ERROR_UNKNOWN_OBJECT,
                             "Unknown object");
                 return false;
             }
-            if(auto node = weak_node->second.object.lock()) {
+            if (auto node = weak_node->second.object.lock()) {
                 auto iface_it = node->interfaces().find(interface_name);
-                if(iface_it == node->interfaces().end()) {
+                if (iface_it == node->interfaces().end()) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_UNKNOWN_INTERFACE,
                                 "Unknown interface");
@@ -511,10 +511,10 @@ struct server::internal {
                 }
 
                 auto iface = iface_it->second.lock();
-                if(!iface) {
+                if (!iface) {
                     g_set_error(error, G_DBUS_ERROR,
-                            G_DBUS_ERROR_UNKNOWN_INTERFACE,
-                            "Interface expired");
+                                G_DBUS_ERROR_UNKNOWN_INTERFACE,
+                                "Interface expired");
                     return false;
                 }
 
@@ -524,29 +524,29 @@ struct server::internal {
 
                     try {
                         return p.set_variant(i->from_gvariant(value));
-                    } catch(std::bad_variant_access& e) {
+                    } catch (std::bad_variant_access& e) {
                         g_set_error(error, G_DBUS_ERROR,
                                     G_DBUS_ERROR_INVALID_SIGNATURE,
                                     "Invalid argument type");
                         return false;
-                    } catch(permission_denied& e) {
+                    } catch (permission_denied& e) {
                         g_set_error(error, G_DBUS_ERROR,
                                     G_DBUS_ERROR_PROPERTY_READ_ONLY,
                                     "%s", e.what());
                         return false;
-                    } catch(std::invalid_argument& e) {
+                    } catch (std::invalid_argument& e) {
                         g_set_error(error, G_DBUS_ERROR,
                                     G_DBUS_ERROR_INVALID_ARGS,
                                     "%s", e.what());
                         return false;
-                    } catch(std::exception& e) {
+                    } catch (std::exception& e) {
                         g_set_error(error, G_DBUS_ERROR,
                                     G_DBUS_ERROR_FAILED,
                                     "%s", e.what());
                         return false;
                     }
 
-                } catch(std::out_of_range& e) {
+                } catch (std::out_of_range& e) {
                     g_set_error(error, G_DBUS_ERROR,
                                 G_DBUS_ERROR_UNKNOWN_PROPERTY,
                                 "Unknown property");
@@ -573,7 +573,7 @@ struct server::internal {
             [[maybe_unused]] GDBusConnection* connection,
             [[maybe_unused]] const gchar* name,
             gpointer internal_weak) {
-        if(auto i = static_cast<std::weak_ptr<internal>*>(
+        if (auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
             i->owns_name = NAME_OWNED;
         } else {
@@ -585,11 +585,11 @@ struct server::internal {
             [[maybe_unused]] GDBusConnection* connection,
             [[maybe_unused]] const gchar* name,
             gpointer internal_weak) {
-        if(auto i = static_cast<std::weak_ptr<internal>*>(
+        if (auto i = static_cast<std::weak_ptr<internal>*>(
                 internal_weak)->lock()) {
             i->owns_name = NAME_LOST;
 
-            if(i->main_loop) {
+            if (i->main_loop) {
                 if (g_main_loop_is_running(i->main_loop)) {
                     g_main_loop_quit(i->main_loop);
                 }
@@ -615,14 +615,14 @@ struct server::internal {
             const GVariantType* g_type;
             try {
                 g_type = std::any_cast<GVariantType*>(type.raw_data());
-            } catch(std::bad_any_cast& e) {
+            } catch (std::bad_any_cast& e) {
                 g_type = std::any_cast<const GVariantType*>(type.raw_data());
             }
-            if(!g_type)
+            if (!g_type)
                 throw std::runtime_error("null ipcgull::variant_type");
             info->signature = g_variant_type_dup_string(g_type);
             assert(info->signature);
-        } catch(std::bad_any_cast& e) {
+        } catch (std::bad_any_cast& e) {
             throw std::runtime_error("bad ipcgull::variant_type");
         }
 
@@ -633,12 +633,12 @@ struct server::internal {
                                     const std::vector<variant_type>& types) {
         assert(names.size() == types.size());
         const auto size = std::min(names.size(), types.size());
-        if(!size)
+        if (!size)
             return nullptr;
-        auto* g_args = g_new(GDBusArgInfo*,size+1);
+        auto* g_args = g_new(GDBusArgInfo*, size + 1);
         assert(g_args);
         g_args[size] = nullptr;
-        for(std::size_t i = 0; i < size; ++i)
+        for (std::size_t i = 0; i < size; ++i)
             g_args[i] = arg_info(names[i], types[i]);
 
         return g_args;
@@ -667,9 +667,9 @@ struct server::internal {
         info->annotations = nullptr;
         {
             int flags = G_DBUS_PROPERTY_INFO_FLAGS_NONE;
-            if(p.permissions() & property_readable)
+            if (p.permissions() & property_readable)
                 flags |= G_DBUS_PROPERTY_INFO_FLAGS_READABLE;
-            if(p.permissions() & property_writeable)
+            if (p.permissions() & property_writeable)
                 flags |= G_DBUS_PROPERTY_INFO_FLAGS_WRITABLE;
             info->flags = static_cast<GDBusPropertyInfoFlags>(flags);
         }
@@ -677,15 +677,15 @@ struct server::internal {
             const GVariantType* g_type;
             try {
                 g_type = std::any_cast<GVariantType*>(p.type().raw_data());
-            } catch(std::bad_any_cast& e) {
+            } catch (std::bad_any_cast& e) {
                 g_type = std::any_cast<const GVariantType*>(
                         p.type().raw_data());
             }
-            if(!g_type)
+            if (!g_type)
                 throw std::runtime_error("null ipcgull::variant_type");
             info->signature = g_variant_type_dup_string(g_type);
             assert(info->signature);
-        } catch(std::bad_any_cast& e) {
+        } catch (std::bad_any_cast& e) {
             throw std::runtime_error("bad ipcgull::variant_type");
         }
 
@@ -704,7 +704,7 @@ struct server::internal {
     }
 
     static GDBusInterfaceInfo* interface_info(const interface& iface) {
-        auto* info = g_new(GDBusInterfaceInfo , 1);
+        auto* info = g_new(GDBusInterfaceInfo, 1);
         assert(info);
         info->ref_count = 1;
         /// TODO: Annotation support
@@ -713,7 +713,7 @@ struct server::internal {
 
         {
             const auto& functions = iface.functions();
-            if(functions.empty()) {
+            if (functions.empty()) {
                 info->methods = nullptr;
             } else {
                 info->methods = g_new(GDBusMethodInfo*,
@@ -723,7 +723,7 @@ struct server::internal {
             }
 
             std::size_t i = 0;
-            for(auto& x : functions) {
+            for (auto& x: functions) {
                 info->methods[i] = function_info(x.first, x.second);
                 ++i;
             }
@@ -732,7 +732,7 @@ struct server::internal {
         {
             const auto& properties = iface.properties();
 
-            if(properties.empty()) {
+            if (properties.empty()) {
                 info->properties = nullptr;
             } else {
                 info->properties = g_new(GDBusPropertyInfo*,
@@ -742,7 +742,7 @@ struct server::internal {
             }
 
             std::size_t i = 0;
-            for(auto& x : properties) {
+            for (auto& x: properties) {
                 info->properties[i] = property_info(x.first, x.second);
                 ++i;
             }
@@ -751,7 +751,7 @@ struct server::internal {
         {
             const auto& signals = iface.signals();
 
-            if(signals.empty()) {
+            if (signals.empty()) {
                 info->signals = nullptr;
             } else {
                 info->signals = g_new(GDBusSignalInfo*,
@@ -761,7 +761,7 @@ struct server::internal {
             }
 
             std::size_t i = 0;
-            for(auto& x : signals) {
+            for (auto& x: signals) {
                 info->signals[i] = signal_info(x.first, x.second);
                 ++i;
             }
@@ -782,39 +782,38 @@ struct server::internal {
 server::server(std::string name,
                std::string root_node,
                enum connection_mode mode) :
-                       _internal {std::make_shared<internal>()},
-                       _name {std::move(name)}, _root {std::move(root_node)}
-{
-    if(!_internal)
+        _internal{std::make_shared<internal>()},
+        _name{std::move(name)}, _root{std::move(root_node)} {
+    if (!_internal)
         throw std::runtime_error("server internal struct failed to allocate");
 
     std::lock_guard<std::mutex> lock(server_init_mutex);
-    if(server_exists)
+    if (server_exists)
         throw std::runtime_error("server already exists");
 
     GError* err = nullptr;
 
-    switch(mode) {
-    case IPCGULL_SYSTEM:
-        _internal->bus_type = G_BUS_TYPE_SYSTEM;
-        break;
-    case IPCGULL_USER:
-        _internal->bus_type = G_BUS_TYPE_SESSION;
-        break;
-    case IPCGULL_STARTER:
-        _internal->bus_type = G_BUS_TYPE_STARTER;
-        break;
+    switch (mode) {
+        case IPCGULL_SYSTEM:
+            _internal->bus_type = G_BUS_TYPE_SYSTEM;
+            break;
+        case IPCGULL_USER:
+            _internal->bus_type = G_BUS_TYPE_SESSION;
+            break;
+        case IPCGULL_STARTER:
+            _internal->bus_type = G_BUS_TYPE_STARTER;
+            break;
     }
 
     _internal->connection = g_bus_get_sync(_internal->bus_type,
-                                          nullptr, &err);
+                                           nullptr, &err);
 
-    if(err) {
+    if (err) {
         const std::string ewhat(err->message);
         g_clear_error(&err);
         throw connection_failed(ewhat);
     }
-    if(!_internal->connection) {
+    if (!_internal->connection) {
         throw connection_failed();
     }
 
@@ -841,7 +840,7 @@ server::server(std::string name,
 }
 
 std::shared_ptr<server> server::make_server(
-        const std::string &name, const std::string &root_node,
+        const std::string& name, const std::string& root_node,
         enum connection_mode mode) {
     std::shared_ptr<server> ptr = std::make_shared<_server>(
             name, root_node, mode);
@@ -851,30 +850,30 @@ std::shared_ptr<server> server::make_server(
 }
 
 server::~server() {
-    if(running())
+    if (running())
         stop_sync();
 
-    for(auto& x : _internal->nodes) {
-        if(auto n = x.second.object.lock())
+    for (auto& x: _internal->nodes) {
+        if (auto n = x.second.object.lock())
             n->drop_server(_self);
     }
 
-    if(_internal->main_loop) {
+    if (_internal->main_loop) {
         GMainLoop* loop = _internal->main_loop;
         _internal->main_loop = nullptr;
         g_main_loop_unref(loop);
     }
 
-    if(_internal->object_manager) {
+    if (_internal->object_manager) {
         g_dbus_object_manager_server_set_connection(_internal->object_manager,
                                                     nullptr);
         g_object_unref(_internal->object_manager);
     }
 
-    if(_internal->gdbus_name)
+    if (_internal->gdbus_name)
         g_bus_unown_name(_internal->gdbus_name);
 
-    if(_internal->connection) {
+    if (_internal->connection) {
         g_dbus_connection_close_sync(_internal->connection, nullptr, nullptr);
         g_object_unref(_internal->connection);
     }
@@ -889,11 +888,11 @@ void server::emit_signal(
     GError* error = nullptr;
 
     // TODO: Destination bus support
-    if(!g_dbus_connection_emit_signal(
+    if (!g_dbus_connection_emit_signal(
             _internal->connection, nullptr,
             node.c_str(), iface.c_str(),
             signal.c_str(), g_args, &error)) {
-        if(error) {
+        if (error) {
             g_variant_unref(g_args);
             const std::string ewhat(error->message);
             g_clear_error(&error);
@@ -909,8 +908,8 @@ void server::add_interface(const std::shared_ptr<node>& node,
     std::lock_guard<std::recursive_mutex> lock(_internal->server_lock);
     auto node_name = node->full_name(*this);
     auto node_it = _internal->nodes.find(node_name);
-    if(node_it != _internal->nodes.end()) {
-        if(node_it->second.interfaces.count(iface.name()))
+    if (node_it != _internal->nodes.end()) {
+        if (node_it->second.interfaces.count(iface.name()))
             throw std::runtime_error("interface already exists");
     }
 
@@ -926,13 +925,13 @@ void server::add_interface(const std::shared_ptr<node>& node,
             &error);
     g_dbus_interface_info_unref(iface_info);
 
-    if(error) {
+    if (error) {
         const std::string ewhat(error->message);
         g_clear_error(&error);
         throw std::runtime_error(ewhat);
     }
 
-    if(node_it == _internal->nodes.end()) {
+    if (node_it == _internal->nodes.end()) {
         node_it = _internal->nodes.emplace(node_name, node).first;
     }
     node_it->second.interfaces.emplace(iface.name(), reg_id);
@@ -943,19 +942,19 @@ bool server::drop_interface(const std::string& node_path,
     std::lock_guard<std::recursive_mutex> lock(_internal->server_lock);
     bool ret;
     auto node_it = _internal->nodes.find(node_path);
-    if(node_it == _internal->nodes.end())
+    if (node_it == _internal->nodes.end())
         return false;
 
     auto iface_it = node_it->second.interfaces.find(if_name);
-    if(iface_it == node_it->second.interfaces.end())
+    if (iface_it == node_it->second.interfaces.end())
         return false;
 
     ret = g_dbus_connection_unregister_object(_internal->connection,
                                               iface_it->second);
 
     node_it->second.interfaces.erase(iface_it);
-    if(node_it->second.interfaces.empty()) {
-        if(auto node_sp = node_it->second.object.lock())
+    if (node_it->second.interfaces.empty()) {
+        if (auto node_sp = node_it->second.object.lock())
             _internal->object_path_lookup.erase(
                     node_sp->managed().lock().get());
         _internal->nodes.erase(node_it);
@@ -972,8 +971,8 @@ void server::set_managing(const std::shared_ptr<node>& n,
 
     _internal->object_path_lookup.erase(n->managed().lock().get());
 
-    if(auto obj = managing.lock()) {
-        if(_internal->object_path_lookup.count(obj.get()))
+    if (auto obj = managing.lock()) {
+        if (_internal->object_path_lookup.count(obj.get()))
             throw std::runtime_error("Managed object must be unique");
         _internal->object_path_lookup.emplace(obj.get(),
                                               n->full_name(*this));
@@ -982,23 +981,23 @@ void server::set_managing(const std::shared_ptr<node>& n,
 
 [[maybe_unused]] void server::reconnect() {
     // We do not need to reconnect if already running.
-    if(running())
+    if (running())
         return;
     std::lock_guard<std::mutex> lock(_internal->run_lock);
     GError* err = nullptr;
 
-    if(_internal->connection) {
-        if(g_dbus_connection_is_closed(_internal->connection)) {
-            if(_internal->object_manager)
+    if (_internal->connection) {
+        if (g_dbus_connection_is_closed(_internal->connection)) {
+            if (_internal->object_manager)
                 g_dbus_object_manager_server_set_connection(
-                        _internal->object_manager,nullptr);
+                        _internal->object_manager, nullptr);
 
             g_object_unref(_internal->connection);
         }
     }
 
-    if(!_internal->connection) {
-        if(_internal->object_manager) {
+    if (!_internal->connection) {
+        if (_internal->object_manager) {
             g_object_unref(_internal->object_manager);
             _internal->object_manager = nullptr;
         }
@@ -1008,17 +1007,17 @@ void server::set_managing(const std::shared_ptr<node>& n,
         _internal->connection = g_bus_get_sync(_internal->bus_type,
                                                nullptr, &err);
 
-        if(err) {
+        if (err) {
             const std::string ewhat(err->message);
             g_clear_error(&err);
             throw connection_failed(ewhat);
         }
-        if(!_internal->connection) {
+        if (!_internal->connection) {
             throw connection_failed();
         }
     }
 
-    if(_internal->owns_name == NAME_LOST) {
+    if (_internal->owns_name == NAME_LOST) {
         auto* internal_weak = new std::weak_ptr<internal>(_internal);
         _internal->owns_name = NAME_WAITING;
         _internal->gdbus_name = g_bus_own_name_on_connection(
@@ -1028,7 +1027,7 @@ void server::set_managing(const std::shared_ptr<node>& n,
                 internal::free_internal_weak);
     }
 
-    if(!_internal->object_manager) {
+    if (!_internal->object_manager) {
         _internal->object_manager = g_dbus_object_manager_server_new(
                 _root.c_str());
         assert(_internal->object_manager);
@@ -1038,13 +1037,13 @@ void server::set_managing(const std::shared_ptr<node>& n,
 }
 
 [[maybe_unused]] void server::start() {
-    if(running())
+    if (running())
         throw std::runtime_error("server is already running");
 
-    if(_internal->owns_name == NAME_LOST)
+    if (_internal->owns_name == NAME_LOST)
         throw connection_lost("dbus name lost");
 
-    if(!_internal->main_loop)
+    if (!_internal->main_loop)
         _internal->main_loop = g_main_loop_new(nullptr, false);
 
     _internal->stop_requested = false;
@@ -1052,13 +1051,13 @@ void server::set_managing(const std::shared_ptr<node>& n,
     std::lock_guard<std::mutex> lock(_internal->run_lock);
     g_main_loop_run(_internal->main_loop);
 
-    if(!_internal->owns_name && !_internal->stop_requested)
+    if (!_internal->owns_name && !_internal->stop_requested)
         throw connection_lost("dbus name lost");
 }
 
 void server::stop() {
     _internal->stop_requested = true;
-    if(_internal->main_loop) {
+    if (_internal->main_loop) {
         g_main_loop_quit(_internal->main_loop);
     }
 }
@@ -1073,7 +1072,7 @@ void server::stop_sync() {
 }
 
 bool server::running() const {
-    if(_internal->main_loop)
+    if (_internal->main_loop)
         return g_main_loop_is_running(_internal->main_loop);
     return false;
 }
@@ -1084,7 +1083,7 @@ const std::string& server::root_node() const {
 
 std::string node::full_name(const server& s) const {
     const auto tree = tree_name();
-    if(tree.empty())
+    if (tree.empty())
         return s.root_node();
     else
         return s.root_node() + "/" + tree;
@@ -1092,7 +1091,7 @@ std::string node::full_name(const server& s) const {
 
 std::string node::tree_name() const {
     std::lock_guard<std::recursive_mutex> lock(*_hierarchy_lock);
-    if(const auto parent = _parent.lock()) {
+    if (const auto parent = _parent.lock()) {
         return parent->tree_name() + "/" + name();
     } else {
         return name();

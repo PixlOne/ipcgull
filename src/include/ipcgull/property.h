@@ -29,37 +29,39 @@
 
 namespace ipcgull {
     namespace {
-        template <typename T, typename Lock>
+        template<typename T, typename Lock>
         static variant get_property(const std::shared_ptr<T>& data,
                                     const std::shared_ptr<Lock>& lock) {
-            assert(lock); assert(data);
+            assert(lock);
+            assert(data);
             std::lock_guard<Lock> guard(*lock);
             return to_variant(*data);
         }
 
-        template <typename T>
+        template<typename T>
         static variant get_property(const std::shared_ptr<T>& data) {
             assert(data);
             return to_variant(*data);
         }
 
-        template <typename T>
+        template<typename T>
         static bool validate_input(std::function<bool(const T&)> validate,
                                    const variant& input) {
             return validate(from_variant<T>(input));
         }
 
-        template <typename T, typename Lock>
+        template<typename T, typename Lock>
         static bool set_property(const std::shared_ptr<T>& data,
                                  const variant& input,
                                  const std::shared_ptr<Lock>& lock) {
-            assert(lock); assert(data);
+            assert(lock);
+            assert(data);
             std::lock_guard<Lock> guard(*lock);
             *data = from_variant<T>(input);
             return true;
         }
 
-        template <typename T>
+        template<typename T>
         static bool set_property(const std::shared_ptr<T>& data,
                                  const variant& input) {
             assert(data);
@@ -86,59 +88,62 @@ namespace ipcgull {
         std::function<bool(const variant&)> _set;
 
         friend class interface;
+
     protected:
-        template <typename T, typename Lock>
+        template<typename T, typename Lock>
         base_property(property_permissions mode,
                       const std::shared_ptr<T>& target,
                       const std::shared_ptr<Lock>& lock) :
-                _type (make_variant_type<T>()), _perms (mode),
-                _get ([target, lock]()->variant{
+                _type(make_variant_type<T>()), _perms(mode),
+                _get([target, lock]() -> variant {
                     return get_property(target, lock);
                 }),
-                _validate ([](const variant&)->bool { return true; }),
-                _set ( [target, lock](const variant& v)->bool {
+                _validate([](const variant&) -> bool { return true; }),
+                _set([target, lock](const variant& v) -> bool {
                     return set_property(target, v, lock);
-                } ) {
-            if(!target || !lock)
+                }) {
+            if (!target || !lock)
                 throw std::runtime_error("null property");
         }
 
-        template <typename T, typename Lock>
+        template<typename T, typename Lock>
         base_property(property_permissions mode,
                       const std::shared_ptr<T>& target,
                       const std::function<bool(const T&)>& validate,
                       const std::shared_ptr<Lock>& lock) :
-                _type (make_variant_type<T>()), _perms (mode),
-                _get ([target, lock]()->variant{
+                _type(make_variant_type<T>()), _perms(mode),
+                _get([target, lock]() -> variant {
                     return get_property(target, lock);
                 }),
-                _validate ([validate](const variant& v)->bool {
+                _validate([validate](const variant& v) -> bool {
                     return validate_input(validate, v);
                 }),
-                _set ( [target, lock](const variant& v)->bool {
+                _set([target, lock](const variant& v) -> bool {
                     return set_property(target, v, lock);
-                } ) {
-            if(!target || !lock)
+                }) {
+            if (!target || !lock)
                 throw std::runtime_error("null property");
         }
 
-        template <typename T, typename Lock>
+        template<typename T, typename Lock>
         base_property(property_permissions mode,
                       const std::shared_ptr<const T>& target,
                       const std::shared_ptr<Lock>& lock) :
-                _type (make_variant_type<T>()), _perms (mode),
-                _get ([target, lock]()->variant{
+                _type(make_variant_type<T>()), _perms(mode),
+                _get([target, lock]() -> variant {
                     return get_property(target, lock);
                 }),
-                _validate ([](const variant&)->bool { return true; }),
-                _set ( [](const variant&)->bool { return false; } ) {
-            if(!target || !lock)
+                _validate([](const variant&) -> bool { return true; }),
+                _set([](const variant&) -> bool { return false; }) {
+            if (!target || !lock)
                 throw std::runtime_error("null property");
         }
 
         void notify_change() const;
+
     public:
         [[nodiscard]] variant get_variant() const;
+
         [[nodiscard]] bool set_variant(const variant& value);
 
         [[nodiscard]] const variant_type& type() const;
@@ -147,25 +152,27 @@ namespace ipcgull {
     };
 
     // properties are atomic
-    template <typename T, typename Lock = std::mutex>
+    template<typename T, typename Lock = std::mutex>
     class property : public base_property {
         std::shared_ptr<T> _data;
         mutable std::shared_ptr<Lock> _lock;
+
         property(const property_permissions& perms,
                  std::shared_ptr<T>&& data,
                  std::shared_ptr<Lock>&& lock) :
                 base_property(perms, data, lock),
-                _data (std::move(data)), _lock (std::move(lock)) {
+                _data(std::move(data)), _lock(std::move(lock)) {
             static_assert(variant_constructable<T>::value);
         }
+
     public:
-        template <typename... Args>
+        template<typename... Args>
         property(const property_permissions& perms, Args... args) :
-            property(perms, std::make_shared<T>(std::forward<Args>(args)...),
-                    std::make_shared<Lock>()) {
+                property(perms, std::make_shared<T>(std::forward<Args>(args)...),
+                         std::make_shared<Lock>()) {
         }
 
-        template <typename... Args>
+        template<typename... Args>
         property(const property_permissions& perms,
                  const std::shared_ptr<Lock>& lock,
                  Args... args) :
@@ -174,7 +181,7 @@ namespace ipcgull {
                          lock) {
         }
 
-        template <typename... Args>
+        template<typename... Args>
         property(const property_permissions& perms,
                  std::function<bool(const T&)> validate,
                  Args... args) :
@@ -183,7 +190,7 @@ namespace ipcgull {
                          validate, std::make_shared<Lock>()) {
         }
 
-        template <typename... Args>
+        template<typename... Args>
         property(const property_permissions& perms,
                  const std::shared_ptr<Lock>& lock,
                  std::function<bool(const T&)> validate,
@@ -205,32 +212,33 @@ namespace ipcgull {
         property() = delete;
 
         property(const property& o) : base_property(o),
-            _data (o._data), _lock (o._lock) {
+                                      _data(o._data), _lock(o._lock) {
         }
 
         property(property&& o) : base_property(std::move(o)),
-            _data (std::move(o._data)), _lock (std::move(o._lock)) {
+                                 _data(std::move(o._data)), _lock(std::move(o._lock)) {
         }
 
-        template <typename O, typename OLock>
+        template<typename O, typename OLock>
         property(const property<O, OLock>& o) : base_property(o),
-            _data (o._data), _lock(o._lock) {
+                                                _data(o._data), _lock(o._lock) {
         }
 
-        template <typename O, typename OLock>
+        template<typename O, typename OLock>
         property(property<O, OLock>&& o) : base_property(std::move(o)),
-            _data (std::move(o._data)), _lock(std::move(o._lock)) {
+                                           _data(std::move(o._data)), _lock(std::move(o._lock)) {
         }
 
         property& operator=(const property& o) {
-            if(this != &o) {
+            if (this != &o) {
                 operator=(*o._data);
             }
 
             return *this;
         }
+
         property& operator=(property&& o) {
-            if(this != &o) {
+            if (this != &o) {
                 operator=(std::move(*o._data));
                 o.notify_change();
             }

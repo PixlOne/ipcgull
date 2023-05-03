@@ -29,6 +29,7 @@
 
 namespace ipcgull {
     class interface;
+
     class server;
 
     class node {
@@ -45,6 +46,7 @@ namespace ipcgull {
         std::weak_ptr<object> _managing;
 
         friend class interface;
+
         // Assumes that types are already checked
         void emit_signal(const std::string& iface,
                          const std::string& signal,
@@ -52,13 +54,17 @@ namespace ipcgull {
                          const variant_type& args_type) const;
 
         friend class _node;
+
         explicit node(std::string name);
+
         explicit node(std::string name,
                       const std::shared_ptr<const node>& parent);
+
     public:
         ~node();
 
         node(node&&) = delete;
+
         node(const node&) = delete;
 
         [[maybe_unused]]
@@ -68,13 +74,13 @@ namespace ipcgull {
         [[maybe_unused]]
         std::shared_ptr<node> make_child(const std::string& name) const;
 
-        template <typename T, typename... Args>
-        [[maybe_unused]] std::shared_ptr<T> make_interface(Args&&... args) {
+        template<typename T, typename... Args>
+        [[maybe_unused]] std::shared_ptr<T> make_interface(Args&& ... args) {
             static_assert(std::is_base_of<interface, T>::value,
-                    "T must be an interface");
+                          "T must be an interface");
             auto ptr = std::make_shared<T>(std::forward<Args&&>(args)...);
 
-            if(_interfaces.count(ptr->name()))
+            if (_interfaces.count(ptr->name()))
                 throw std::invalid_argument("duplicate interface");
 
             assert(!_self.expired());
@@ -82,14 +88,14 @@ namespace ipcgull {
             {
                 std::list<std::shared_ptr<server>> added_servers;
                 try {
-                    for(auto& s : _servers) {
-                        if(auto server = s.lock()) {
+                    for (auto& s: _servers) {
+                        if (auto server = s.lock()) {
                             server->add_interface(_self.lock(), *ptr);
                             added_servers.push_front(server);
                         }
                     }
-                } catch(std::exception& e) {
-                    while(!added_servers.empty()) {
+                } catch (std::exception& e) {
+                    while (!added_servers.empty()) {
                         auto& s = added_servers.front();
                         s->drop_interface(full_name(*s), ptr->name());
                         added_servers.pop_front();
@@ -107,18 +113,21 @@ namespace ipcgull {
         [[maybe_unused]] bool drop_interface(const std::string& name);
 
         void add_server(const std::weak_ptr<server>& s);
+
         bool drop_server(const std::weak_ptr<server>& s);
 
         void manage(const std::weak_ptr<object>& obj);
+
         [[nodiscard]] const std::weak_ptr<object>& managed() const;
 
         [[nodiscard]] const std::map<std::string, std::weak_ptr<interface>>&
-            interfaces() const;
+        interfaces() const;
 
         [[nodiscard]] const std::string& name() const;
 
         // This should be provided by backend code.
         [[nodiscard]] std::string full_name(const server& s) const;
+
         [[nodiscard]] std::string tree_name() const;
     };
 }

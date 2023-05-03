@@ -26,6 +26,7 @@
 
 namespace ipcgull {
     class node;
+
     class interface;
 
     class server {
@@ -39,15 +40,19 @@ namespace ipcgull {
         const std::string _root;
 
         friend class node;
+
         // Only the node should access these functions
         void emit_signal(
                 const std::string& node, const std::string& iface,
                 const std::string& signal, const variant_tuple& args,
                 const variant_type& args_type) const;
+
         void add_interface(const std::shared_ptr<node>& node,
                            const interface& iface);
+
         bool drop_interface(const std::string& node_path,
                             const std::string& if_name) noexcept;
+
         void set_managing(const std::shared_ptr<node>& n,
                           const std::weak_ptr<object>& managing);
 
@@ -55,6 +60,7 @@ namespace ipcgull {
         server(std::string name,
                std::string root_node,
                enum connection_mode mode);
+
     public:
         static std::shared_ptr<server> make_server(
                 const std::string& name, const std::string& root_node,
@@ -63,13 +69,17 @@ namespace ipcgull {
         ~server();
 
         server(server&&) = delete;
+
         server(const server&) = delete;
 
         [[maybe_unused]] void reconnect();
 
         [[maybe_unused]] void start();
+
         void stop();
+
         void stop_wait();
+
         void stop_sync();
 
         [[nodiscard]] bool running() const;

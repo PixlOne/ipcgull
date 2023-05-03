@@ -23,5 +23,5 @@ using namespace ipcgull;
 
 signal::signal(std::vector<variant_type> t,
                std::vector<std::string> n) :
-               types (std::move(t)), names (std::move(n)) {
+        types(std::move(t)), names(std::move(n)) {
 }

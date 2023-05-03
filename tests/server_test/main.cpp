@@ -30,7 +30,7 @@ constexpr ipcgull::connection_mode default_mode = ipcgull::IPCGULL_USER;
 class sample_object : public ipcgull::object {
     int x;
 public:
-    explicit sample_object(int i = 0) : x {i} { }
+    explicit sample_object(int i = 0) : x{i} {}
 
     sample_object& operator=(int o) {
         x = o;
@@ -60,7 +60,7 @@ private:
     }
 
     void stop() {
-        if(auto server = _server.lock()) {
+        if (auto server = _server.lock()) {
             server->stop();
         } else {
             throw std::runtime_error("null server");
@@ -68,12 +68,12 @@ private:
     }
 
     void drop() {
-        if(auto owner_sp = owner.lock())
+        if (auto owner_sp = owner.lock())
             owner_sp->drop_interface("pizza.pixl.ipcgull.test.sample");
     }
 
     static void set_sample_object(const std::shared_ptr<sample_object>& o,
-                           const int& x) {
+                                  const int& x) {
         *o = x;
     }
 
@@ -89,19 +89,20 @@ public:
     sample_interface(const std::shared_ptr<ipcgull::server>& server,
                      const std::shared_ptr<ipcgull::node>& o,
                      const ipcgull::property<int>& ret) :
-    ipcgull::interface("pizza.pixl.ipcgull.test.sample", {
-            {"Echo", {echo, {"input"}, {"output"}}},
-            {"Print", {print, {"input"}}},
-            {"Stop", {this, &sample_interface::stop}},
-            {"CutString", {cut_string, {"input"}, {"cut", "original_length"}}},
-            {"Drop", {this, &sample_interface::drop}},
-            {"SetObject", {set_sample_object, {"object", "value"}}},
-            {"GetObject", {get_sample_object, {"object"}, {"value"}}}
-    }, {
-            {"ReturnCode", ret}
-        },{
-            {"InputReceived", ipcgull::make_signal<std::string>({"line"})}
-    }), _server (server), owner (o) { }
+            ipcgull::interface("pizza.pixl.ipcgull.test.sample", {
+                    {"Echo",      {echo,              {"input"},  {"output"}}},
+                    {"Print",     {print,             {"input"}}},
+                    {"Stop",      {this,              &sample_interface::stop}},
+                    {"CutString", {cut_string,        {"input"},  {"cut", "original_length"}}},
+                    {"Drop",      {this,              &sample_interface::drop}},
+                    {"SetObject", {set_sample_object, {"object", "value"}}},
+                    {"GetObject", {get_sample_object, {"object"}, {"value"}}}
+            }, {
+                                       {"ReturnCode", ret}
+                               }, {
+                                       {"InputReceived",
+                                        ipcgull::make_signal<std::string>({"line"})}
+                               }), _server(server), owner(o) {}
 
     void input_received(const std::string& line) {
         emit_signal("InputReceived", line);
@@ -125,7 +126,7 @@ int main() {
     std::thread signal_thread([iface, server, &ret]() {
         std::string line;
 
-        while(std::getline(std::cin, line))
+        while (std::getline(std::cin, line))
             iface->input_received(line);
     });
 

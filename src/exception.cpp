@@ -20,26 +20,26 @@
 
 using namespace ipcgull;
 
-connection_failed::connection_failed(std::string w) : _what (std::move(w)) { }
+connection_failed::connection_failed(std::string w) : _what(std::move(w)) {}
 
 connection_failed::connection_failed() :
-    connection_failed("Connection failed") { }
+        connection_failed("Connection failed") {}
 
 const char* connection_failed::what() const noexcept {
     return _what.c_str();
 }
 
 connection_lost::connection_lost(const std::string& w) :
-    connection_failed (w) { }
+        connection_failed(w) {}
 
 connection_lost::connection_lost() :
-    connection_lost("Connection lost") { }
+        connection_lost("Connection lost") {}
 
 permission_denied::permission_denied(std::string w) :
-    _what (std::move(w)) { }
+        _what(std::move(w)) {}
 
 permission_denied::permission_denied() :
-    permission_denied("Permission denied") { }
+        permission_denied("Permission denied") {}
 
 const char* permission_denied::what() const noexcept {
     return _what.c_str();

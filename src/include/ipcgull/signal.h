@@ -28,18 +28,20 @@ namespace ipcgull {
     private:
         signal(std::vector<variant_type> t,
                std::vector<std::string> n);
+
     public:
         const std::vector<variant_type> types;
         const std::vector<std::string> names;
 
-        template <typename... Args>
+        template<typename... Args>
         static signal make_signal(
                 const std::array<std::string, sizeof...(Args)>& n) {
-            return {{make_variant_type<Args>()...}, {n.begin(), n.end()}};
+            return {{make_variant_type<Args>()...},
+                    {n.begin(), n.end()}};
         }
     };
 
-    template <typename... Args>
+    template<typename... Args>
     [[maybe_unused]]
     const auto make_signal = signal::make_signal<Args...>;
 }

@@ -6,15 +6,15 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(PkgConfig REQUIRED)
 
 # In the future, we should create a better mechanism to change this.
-if(${IPCGULL_STUB})
+if (${IPCGULL_STUB})
     set(IPCGULL_BACKEND_SRC src/server_stub.cpp)
-else()
+else ()
     set(IPCGULL_BACKEND_SRC src/common_gdbus.cpp src/server_gdbus.cpp)
     pkg_check_modules(GIO REQUIRED gio-2.0)
     pkg_check_modules(GLIB REQUIRED glib-2.0)
     set(IPCGULL_BACKEND_INCLUDE ${GIO_INCLUDE_DIRS} ${GLIB_INCLUDE_DIRS})
     set(IPCGULL_BACKEND_LIBRARIES ${GIO_LIBRARIES} ${GLIB_LIBRARIES})
-endif()
+endif ()
 
 include_directories(src/include/ ${IPCGULL_BACKEND_INCLUDE})
 add_library(ipcgull
@@ -27,6 +27,6 @@ add_library(ipcgull
         ${IPCGULL_BACKEND_SRC})
 target_link_libraries(ipcgull ${IPCGULL_BACKEND_LIBRARIES})
 
-if(${BUILD_TESTS})
+if (${BUILD_TESTS})
     add_subdirectory(tests/server_test)
-endif()
+endif ()

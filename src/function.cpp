@@ -21,7 +21,7 @@
 
 using namespace ipcgull;
 
-variant_tuple function::operator()(const variant_tuple &args) const {
+variant_tuple function::operator()(const variant_tuple& args) const {
     return _f(args);
 }
 

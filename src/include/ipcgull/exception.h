@@ -29,6 +29,7 @@ namespace ipcgull {
         const std::string _what;
     public:
         explicit connection_failed(std::string w);
+
         connection_failed();
 
         [[nodiscard]] const char* what() const noexcept override;
@@ -37,6 +38,7 @@ namespace ipcgull {
     class connection_lost : public connection_failed {
     public:
         explicit connection_lost(const std::string& w);
+
         connection_lost();
     };
 

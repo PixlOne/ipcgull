@@ -27,8 +27,11 @@
 
 namespace ipcgull {
     class function;
+
     class base_property;
+
     struct signal;
+
     class node;
 
     class interface {
@@ -45,13 +48,15 @@ namespace ipcgull {
 
         // The node should take ownership of the interface
         friend class node;
+
         std::weak_ptr<node> _owner;
 
         // Assumes types are checked
         [[maybe_unused]]
         void _emit_signal(const std::string& signal,
-                         const std::vector<variant>& args,
-                         const variant_type& args_type) const;
+                          const std::vector<variant>& args,
+                          const variant_type& args_type) const;
+
     public:
         interface(std::string name,
                   function_table f,
@@ -59,32 +64,36 @@ namespace ipcgull {
                   signal_table s);
 
         explicit interface(std::string name,
-                           tables t={});
+                           tables t = {});
 
         ~interface();
 
         // Moving or copying the interface detaches from owner
         interface(interface&& o) noexcept;
+
         interface(const interface& o);
 
-        template <typename T>
+        template<typename T>
         interface& operator=(T) = delete;
 
         [[nodiscard]] const function_table& functions() const;
+
         [[nodiscard]] const property_table& properties() const;
+
         [[nodiscard]] const signal_table& signals() const;
 
         [[nodiscard]] const base_property& get_property(
                 const std::string& name) const;
+
         [[nodiscard]] base_property& get_property(const std::string& name);
 
-        template <typename... Args>
+        template<typename... Args>
         [[maybe_unused]]
         void emit_signal(
                 const std::string& signal, Args... args) const {
             try {
                 const auto& expected_types = _signals.at(signal).types;
-                if(sizeof...(Args) != expected_types.size())
+                if (sizeof...(Args) != expected_types.size())
                     throw std::runtime_error("invalid ipc signal arg count");
 
                 std::vector<variant_type> v_types =
@@ -92,13 +101,13 @@ namespace ipcgull {
                 auto mismatch = std::mismatch(v_types.begin(),
                                               v_types.end(),
                                               expected_types.begin());
-                if(mismatch.first != v_types.end() ||
-                   mismatch.second != expected_types.end())
+                if (mismatch.first != v_types.end() ||
+                    mismatch.second != expected_types.end())
                     throw std::runtime_error("invalid ipc signal arg type");
 
                 _emit_signal(signal, {to_variant(args)...},
                              variant_type::tuple(v_types));
-            } catch(std::out_of_range& e) {
+            } catch (std::out_of_range& e) {
                 throw std::runtime_error("unknown ipc signal emitted");
             }
         }
