@@ -28,46 +28,44 @@
 #include <ipcgull/exception.h>
 
 namespace ipcgull {
-    namespace {
-        template<typename T, typename Lock>
-        static variant get_property(const std::shared_ptr<T>& data,
-                                    const std::shared_ptr<Lock>& lock) {
-            assert(lock);
-            assert(data);
-            std::lock_guard<Lock> guard(*lock);
-            return to_variant(*data);
-        }
-
-        template<typename T>
-        static variant get_property(const std::shared_ptr<T>& data) {
-            assert(data);
-            return to_variant(*data);
-        }
-
-        template<typename T>
-        static bool validate_input(std::function<bool(const T&)> validate,
-                                   const variant& input) {
-            return validate(from_variant<T>(input));
-        }
-
-        template<typename T, typename Lock>
-        static bool set_property(const std::shared_ptr<T>& data,
-                                 const variant& input,
+    template<typename T, typename Lock>
+    static variant _get_property(const std::shared_ptr<T>& data,
                                  const std::shared_ptr<Lock>& lock) {
-            assert(lock);
-            assert(data);
-            std::lock_guard<Lock> guard(*lock);
-            *data = from_variant<T>(input);
-            return true;
-        }
+        assert(lock);
+        assert(data);
+        std::lock_guard<Lock> guard(*lock);
+        return to_variant(*data);
+    }
 
-        template<typename T>
-        static bool set_property(const std::shared_ptr<T>& data,
-                                 const variant& input) {
-            assert(data);
-            *data = from_variant<T>(input);
-            return true;
-        }
+    template<typename T>
+    static variant _get_property(const std::shared_ptr<T>& data) {
+        assert(data);
+        return to_variant(*data);
+    }
+
+    template<typename T>
+    static bool _validate_input(std::function<bool(const T&)> validate,
+                                const variant& input) {
+        return validate(from_variant<T>(input));
+    }
+
+    template<typename T, typename Lock>
+    static bool _set_property(const std::shared_ptr<T>& data,
+                              const variant& input,
+                              const std::shared_ptr<Lock>& lock) {
+        assert(lock);
+        assert(data);
+        std::lock_guard<Lock> guard(*lock);
+        *data = from_variant<T>(input);
+        return true;
+    }
+
+    template<typename T>
+    static bool _set_property(const std::shared_ptr<T>& data,
+                              const variant& input) {
+        assert(data);
+        *data = from_variant<T>(input);
+        return true;
     }
 
     enum property_permissions : uint8_t {
@@ -96,11 +94,11 @@ namespace ipcgull {
                       const std::shared_ptr<Lock>& lock) :
                 _type(make_variant_type<T>()), _perms(mode),
                 _get([target, lock]() -> variant {
-                    return get_property(target, lock);
+                    return _get_property(target, lock);
                 }),
                 _validate([](const variant&) -> bool { return true; }),
                 _set([target, lock](const variant& v) -> bool {
-                    return set_property(target, v, lock);
+                    return _set_property(target, v, lock);
                 }) {
             if (!target || !lock)
                 throw std::runtime_error("null property");
@@ -113,13 +111,13 @@ namespace ipcgull {
                       const std::shared_ptr<Lock>& lock) :
                 _type(make_variant_type<T>()), _perms(mode),
                 _get([target, lock]() -> variant {
-                    return get_property(target, lock);
+                    return _get_property(target, lock);
                 }),
                 _validate([validate](const variant& v) -> bool {
-                    return validate_input(validate, v);
+                    return _validate_input(validate, v);
                 }),
                 _set([target, lock](const variant& v) -> bool {
-                    return set_property(target, v, lock);
+                    return _set_property(target, v, lock);
                 }) {
             if (!target || !lock)
                 throw std::runtime_error("null property");
@@ -131,7 +129,7 @@ namespace ipcgull {
                       const std::shared_ptr<Lock>& lock) :
                 _type(make_variant_type<T>()), _perms(mode),
                 _get([target, lock]() -> variant {
-                    return get_property(target, lock);
+                    return _get_property(target, lock);
                 }),
                 _validate([](const variant&) -> bool { return true; }),
                 _set([](const variant&) -> bool { return false; }) {

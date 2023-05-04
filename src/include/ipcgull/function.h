@@ -24,103 +24,101 @@
 #include <ipcgull/variant.h>
 
 namespace ipcgull {
-    namespace {
-        template<typename T, template<typename...> class Base>
-        struct is_specialization : std::false_type {
-        };
+    template<typename T, template<typename...> class Base>
+    struct is_specialization : std::false_type {
+    };
 
-        template<template<typename...> class Base, typename... Args>
-        struct is_specialization<Base<Args...>, Base> : std::true_type {
-        };
+    template<template<typename...> class Base, typename... Args>
+    struct is_specialization<Base<Args...>, Base> : std::true_type {
+    };
 
-        template<typename R, typename... Args>
-        struct _fn_generator {
-            [[maybe_unused]]
-            static std::function<variant_tuple(variant_tuple)> make_fn(
-                    std::function<R(Args...)> f) {
-                return [func = std::move(f)]
-                        (const variant_tuple& args) -> variant_tuple {
-                    std::vector<variant> ret{to_variant(
-                            std::apply(func,
-                                       from_variant<std::tuple<Args...>>(
-                                               args)))};
-                    return ret;
-                };
-            }
-        };
+    template<typename R, typename... Args>
+    struct _fn_generator {
+        [[maybe_unused]]
+        static std::function<variant_tuple(variant_tuple)> make_fn(
+                std::function<R(Args...)> f) {
+            return [func = std::move(f)]
+                    (const variant_tuple& args) -> variant_tuple {
+                std::vector<variant> ret{to_variant(
+                        std::apply(func,
+                                   from_variant<std::tuple<Args...>>(
+                                           args)))};
+                return ret;
+            };
+        }
+    };
 
-        template<typename R>
-        struct _fn_generator<R> {
-            [[maybe_unused]]
-            static std::function<variant_tuple(variant_tuple)> make_fn(
-                    std::function<R()> f) {
-                return [func = std::move(f)]
-                        (const variant_tuple& args) -> variant_tuple {
-                    if (!args.empty())
-                        throw std::bad_variant_access();
-                    std::vector<variant> ret{to_variant(func())};
-                    return ret;
-                };
-            }
-        };
+    template<typename R>
+    struct _fn_generator<R> {
+        [[maybe_unused]]
+        static std::function<variant_tuple(variant_tuple)> make_fn(
+                std::function<R()> f) {
+            return [func = std::move(f)]
+                    (const variant_tuple& args) -> variant_tuple {
+                if (!args.empty())
+                    throw std::bad_variant_access();
+                std::vector<variant> ret{to_variant(func())};
+                return ret;
+            };
+        }
+    };
 
-        template<typename... R, typename... Args>
-        struct _fn_generator<std::tuple<R...>, Args...> {
-            [[maybe_unused]]
-            static std::function<variant_tuple(variant_tuple)> make_fn(
-                    std::function<std::tuple<R...>(Args...)> f) {
-                return [func = std::move(f)]
-                        (const variant_tuple& args) -> variant_tuple {
-                    auto ret = to_variant(std::apply(
-                            func, from_variant<std::tuple<Args...>>(args)));
-                    assert(std::holds_alternative<variant_tuple>(ret));
-                    return std::get<variant_tuple>(ret);
-                };
-            }
-        };
+    template<typename... R, typename... Args>
+    struct _fn_generator<std::tuple<R...>, Args...> {
+        [[maybe_unused]]
+        static std::function<variant_tuple(variant_tuple)> make_fn(
+                std::function<std::tuple<R...>(Args...)> f) {
+            return [func = std::move(f)]
+                    (const variant_tuple& args) -> variant_tuple {
+                auto ret = to_variant(std::apply(
+                        func, from_variant<std::tuple<Args...>>(args)));
+                assert(std::holds_alternative<variant_tuple>(ret));
+                return std::get<variant_tuple>(ret);
+            };
+        }
+    };
 
-        template<typename... R>
-        struct _fn_generator<std::tuple<R...>> {
-            [[maybe_unused]]
-            static std::function<variant_tuple(variant_tuple)> make_fn(
-                    std::function<std::tuple<R...>()> f) {
-                return [func = std::move(f)](const variant_tuple& args) {
-                    if (!args.empty())
-                        throw std::bad_variant_access();
-                    auto ret = to_variant(func());
-                    assert(std::holds_alternative<variant_tuple>(ret));
-                    return std::get<variant_tuple>(ret);
-                };
-            }
-        };
+    template<typename... R>
+    struct _fn_generator<std::tuple<R...>> {
+        [[maybe_unused]]
+        static std::function<variant_tuple(variant_tuple)> make_fn(
+                std::function<std::tuple<R...>()> f) {
+            return [func = std::move(f)](const variant_tuple& args) {
+                if (!args.empty())
+                    throw std::bad_variant_access();
+                auto ret = to_variant(func());
+                assert(std::holds_alternative<variant_tuple>(ret));
+                return std::get<variant_tuple>(ret);
+            };
+        }
+    };
 
-        template<typename... Args>
-        struct _fn_generator<void, Args...> {
-            [[maybe_unused]]
-            static std::function<variant_tuple(variant_tuple)> make_fn(
-                    std::function<void(Args...)> f) {
-                return [func = std::move(f)]
-                        (const variant_tuple& args) -> variant_tuple {
-                    std::apply(func, from_variant<std::tuple<Args...>>(args));
-                    return {};
-                };
-            }
-        };
+    template<typename... Args>
+    struct _fn_generator<void, Args...> {
+        [[maybe_unused]]
+        static std::function<variant_tuple(variant_tuple)> make_fn(
+                std::function<void(Args...)> f) {
+            return [func = std::move(f)]
+                    (const variant_tuple& args) -> variant_tuple {
+                std::apply(func, from_variant<std::tuple<Args...>>(args));
+                return {};
+            };
+        }
+    };
 
-        template<>
-        struct _fn_generator<void> {
-            static std::function<variant_tuple(variant_tuple)> make_fn(
-                    std::function<void()> f) {
-                return [func = std::move(f)]
-                        (const variant_tuple& args) -> variant_tuple {
-                    if (!args.empty())
-                        throw std::bad_variant_access();
-                    func();
-                    return {};
-                };
-            }
-        };
-    }
+    template<>
+    struct _fn_generator<void> {
+        static std::function<variant_tuple(variant_tuple)> make_fn(
+                std::function<void()> f) {
+            return [func = std::move(f)]
+                    (const variant_tuple& args) -> variant_tuple {
+                if (!args.empty())
+                    throw std::bad_variant_access();
+                func();
+                return {};
+            };
+        }
+    };
 
     class function {
     private:
