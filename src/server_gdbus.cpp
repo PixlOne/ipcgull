@@ -1051,7 +1051,7 @@ void server::set_managing(const std::shared_ptr<node>& n,
     std::lock_guard<std::mutex> lock(_internal->run_lock);
     g_main_loop_run(_internal->main_loop);
 
-    if (!_internal->owns_name && !_internal->stop_requested)
+    if (_internal->owns_name != NAME_OWNED && !_internal->stop_requested)
         throw connection_lost("dbus name lost");
 }
 
